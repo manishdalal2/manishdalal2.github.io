@@ -1,9 +1,56 @@
-<!doctype html>
-<html>
-  <head>
-    <title>This is the title of the webpage!</title>
-  </head>
-  <body>
-    <p>This is an example paragraph. Anything in the <strong>body</strong> tag will appear on the page, just like this <strong>p</strong> tag and its contents.</p>
-  </body>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebRTC Simple Test</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <h1>WebRTC Simple Test</h1>
+    <div class="server-config">
+        <label for="stunServer">STUN Server URL: ex- stun:stun.l.google.com:19302</label>
+        <input type="text" id="stunServer" placeholder="stun:stun.l.google.com:19302" />
+       
+        <button id="updateStun">Update STUN Server</button>
+    </div>
+    <p>Use this page to test WebRTC peer connection by generating and accepting offers and answers.</p>
+    
+    <div class="container">
+        <div class="peer">
+            <h2>Peer 1</h2>
+            <button id="createOffer">Create Offer</button>
+            <button id="setRemoteAnswer">Set Remote Answer</button>
+            <h3>Local SDP:</h3>
+            <textarea id="localSdp1" placeholder="Local session description will appear here"></textarea>
+            <h3>Remote SDP:</h3>
+            <textarea id="remoteSdp1" placeholder="Paste remote answer SDP here"></textarea>
+        </div>
+        
+        <div class="peer">
+            <h2>Peer 2</h2>
+            <button id="createAnswer">Create Answer</button>
+            <button id="setRemoteOffer">Set Remote Offer</button>
+            <h3>Remote SDP:</h3>
+            <textarea id="remoteSdp2" placeholder="Paste remote offer SDP here"></textarea>
+            <h3>Local SDP:</h3>
+            <textarea id="localSdp2" placeholder="Local session description will appear here"></textarea>
+        </div>
+    </div>
+    
+    <!-- Chat interface -->
+    <div class="chat-container chat-disabled" id="chatContainer">
+        <h2>WebRTC Chat</h2>
+        <div class="chat-messages" id="chatMessages"></div>
+        <div class="chat-input">
+            <input type="text" id="messageInput" placeholder="Type a message..." />
+            <button id="sendButton">Send</button>
+        </div>
+        <div><small>Note: Chat becomes available when connection is established</small></div>
+    </div>
+    
+    <div id="status">Status: Ready</div>
+    
+    <script src="webrtc.js"></script>
+</body>
 </html>
