@@ -281,3 +281,190 @@ if (typeof RTCPeerConnection === 'undefined') {
 } else {
     console.log("WebRTC is supported in this browser");
 }
+
+// QR Code Functions
+function generateQRCode(data, elementId) {
+    try {
+        const container = document.getElementById(elementId);
+        container.innerHTML = ''; // Clear previous QR code
+        
+        // Check if QRCode library is available
+        if (typeof QRCode === 'undefined') {
+            updateStatus("QR Code library not loaded. Please check console for errors.");
+            console.error("QRCode library is not defined");
+            return;
+        }
+        
+        // Simple QR generation without using correctLevel
+        var qrcode = new QRCode(container, {
+            text: data,
+            width: 200,
+            height: 200,
+            colorDark : "#000000",
+            colorLight : "#ffffff",
+            correctLevel : QRCode.CorrectLevel.L
+        });
+        
+        updateStatus("QR code generated successfully");
+    } catch (error) {
+        updateStatus(`Error generating QR code: ${error.message}`);
+        console.error("QR Code Error:", error);
+    }
+}
+
+// Generate QR codes for SDPs
+function generateSDPQRCodes() {
+    // Generate QR for local SDP (Peer 1 - Offer)
+    document.getElementById('genQRBtn1').addEventListener('click', () => {
+        if (localSdp1.value) {
+            generateQRCode(localSdp1.value, 'qrcode1');
+            updateStatus("QR code generated for offer");
+        } else {
+            updateStatus("No offer SDP available to generate QR code");
+        }
+    });
+    
+    // Generate QR for local SDP (Peer 2 - Answer)
+    document.getElementById('genQRBtn2').addEventListener('click', () => {
+        if (localSdp2.value) {
+            generateQRCode(localSdp2.value, 'qrcode2');
+            updateStatus("QR code generated for answer");
+        } else {
+            updateStatus("No answer SDP available to generate QR code");
+        }
+    });
+}
+
+// Initialize QR scanner
+function initQRScanner() {
+    // Start scanning on button click for Peer 1
+    document.getElementById('scanQRBtn1').addEventListener('click', () => {
+        startQRScanner('qrScanner1', remoteSdp1);
+    });
+    
+    // Start scanning on button click for Peer 2
+    document.getElementById('scanQRBtn2').addEventListener('click', () => {
+        startQRScanner('qrScanner2', remoteSdp2);
+    });
+}
+
+// Start QR scanner
+function startQRScanner(videoElementId, targetTextarea) {
+    const videoElem = document.getElementById(videoElementId);
+    
+    // Request camera access
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
+        .then(function(stream) {
+            videoElem.srcObject = stream;
+            videoElem.play();
+            
+            // Create canvas for QR detection
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d');
+            let scanning = true;
+            
+            const scanQRCode = function() {
+                if (!scanning) return;
+                
+                if (videoElem.readyState === videoElem.HAVE_ENOUGH_DATA) {
+                    canvas.height = videoElem.videoHeight;
+                    canvas.width = videoElem.videoWidth;
+                    context.drawImage(videoElem, 0, 0, canvas.width, canvas.height);
+                    
+                    const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+                    
+                    // Use jsQR library for QR detection (this integrates with jsQR.js)
+                    const code = jsQR(imageData.data, imageData.width, imageData.height);
+                    
+                    if (code) {
+                        // We found a QR code
+                        scanning = false;
+                        
+                        // Stop video stream
+                        videoElem.srcObject.getTracks().forEach(track => track.stop());
+                        videoElem.srcObject = null;
+                        
+                        // Set the scanned data to the textarea
+                        targetTextarea.value = code.data;
+                        updateStatus("QR code scanned successfully!");
+                        
+                        // Hide video element
+                        videoElem.style.display = 'none';
+                    }
+                }
+                
+                // Continue scanning
+                if (scanning) {
+                    requestAnimationFrame(scanQRCode);
+                }
+            };
+            
+            // Start scanning
+            scanQRCode();
+        })
+        .catch(function(error) {
+            updateStatus(`Error accessing camera: ${error.message}`);
+            console.error("Camera Error:", error);
+        });
+}
+
+// Make sure the libraries are loaded before initializing the QR features
+function checkLibrariesAndInitQR() {
+    // Wait a short time to make sure libraries have been loaded
+    setTimeout(() => {
+        console.log("Checking for QR libraries...");
+        console.log("QRCode availability:", typeof QRCode !== 'undefined');
+        console.log("jsQR availability:", typeof jsQR !== 'undefined');
+
+        // Initialize QR code functionality
+        if (typeof QRCode !== 'undefined') {
+            generateSDPQRCodes();
+            updateStatus("QR code generation ready");
+        } else {
+            console.error("QRCode library not loaded, adding it dynamically");
+            
+            // Attempt to dynamically load the QR code library
+            const qrScript = document.createElement('script');
+            qrScript.src = 'https://cdn.rawgit.com/davidshimjs/qrcodejs/gh-pages/qrcode.min.js';
+            qrScript.onload = () => {
+                console.log("QRCode library loaded dynamically");
+                generateSDPQRCodes();
+                updateStatus("QR code generation ready (loaded dynamically)");
+            };
+            qrScript.onerror = () => {
+                console.error("Failed to load QRCode library");
+                updateStatus("QR code generation unavailable - library failed to load");
+            };
+            document.head.appendChild(qrScript);
+        }
+        
+        // Initialize QR scanner
+        if (typeof jsQR !== 'undefined') {
+            initQRScanner();
+            updateStatus("QR code scanning ready");
+        } else {
+            console.error("jsQR library not loaded, adding it dynamically");
+            
+            // Attempt to dynamically load the jsQR library
+            const jsqrScript = document.createElement('script');
+            jsqrScript.src = 'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js';
+            jsqrScript.onload = () => {
+                console.log("jsQR library loaded dynamically");
+                initQRScanner();
+                updateStatus("QR code scanning ready (loaded dynamically)");
+            };
+            jsqrScript.onerror = () => {
+                console.error("Failed to load jsQR library");
+                updateStatus("QR code scanning unavailable - library failed to load");
+            };
+            document.head.appendChild(jsqrScript);
+        }
+    }, 1000);
+}
+
+// Update the load event listener to use our new initialization function
+window.addEventListener('load', function() {
+     
+    // Check if libraries are loaded and initialize QR features
+    checkLibrariesAndInitQR();
+});

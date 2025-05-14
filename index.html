@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>WebRTC Simple Test</title>
     <link rel="stylesheet" href="styles.css">
+    <!-- QR Code libraries -->
+    <script src="https://cdn.rawgit.com/davidshimjs/qrcodejs/gh-pages/qrcode.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
 </head>
 <body>
     <h1>WebRTC Simple Test</h1>
@@ -23,8 +26,16 @@
             <button id="setRemoteAnswer">Set Remote Answer</button>
             <h3>Local SDP:</h3>
             <textarea id="localSdp1" placeholder="Local session description will appear here"></textarea>
+            <div class="qr-container">
+                <button id="genQRBtn1">Generate QR Code</button>
+                <div id="qrcode1" class="qr-code"></div>
+            </div>
             <h3>Remote SDP:</h3>
             <textarea id="remoteSdp1" placeholder="Paste remote answer SDP here"></textarea>
+            <div class="qr-container">
+                <button id="scanQRBtn1">Scan QR Code</button>
+                <video id="qrScanner1" class="qr-scanner"></video>
+            </div>
         </div>
         
         <div class="peer">
@@ -33,8 +44,16 @@
             <button id="setRemoteOffer">Set Remote Offer</button>
             <h3>Remote SDP:</h3>
             <textarea id="remoteSdp2" placeholder="Paste remote offer SDP here"></textarea>
+            <div class="qr-container">
+                <button id="scanQRBtn2">Scan QR Code</button>
+                <video id="qrScanner2" class="qr-scanner"></video>
+            </div>
             <h3>Local SDP:</h3>
             <textarea id="localSdp2" placeholder="Local session description will appear here"></textarea>
+            <div class="qr-container">
+                <button id="genQRBtn2">Generate QR Code</button>
+                <div id="qrcode2" class="qr-code"></div>
+            </div>
         </div>
     </div>
     
