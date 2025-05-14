@@ -337,6 +337,9 @@ function generateSDPQRCodes() {
 
 // Initialize QR scanner
 function initQRScanner() {
+    // Add camera instructions
+    addCameraInstructions();
+    
     // Start scanning on button click for Peer 1
     document.getElementById('scanQRBtn1').addEventListener('click', () => {
         startQRScanner('qrScanner1', remoteSdp1);
@@ -351,21 +354,78 @@ function initQRScanner() {
 // Start QR scanner
 function startQRScanner(videoElementId, targetTextarea) {
     const videoElem = document.getElementById(videoElementId);
+    videoElem.style.display = 'block'; // Make sure video element is visible
     
-    // Request camera access
-    navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
-        .then(function(stream) {
-            videoElem.srcObject = stream;
-            videoElem.play();
+    // Show camera access instructions
+    updateStatus("Requesting camera access... Please allow camera permission when prompted");
+    
+    // Check if we're on a secure context
+    if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') {
+        updateStatus("Camera access requires HTTPS. Current protocol: " + window.location.protocol);
+        console.warn("Camera access requires HTTPS. Try using localhost or enabling HTTPS.");
+    }
+    
+    // Check if mediaDevices API is available
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        updateStatus("Camera access not supported by this browser");
+        console.error("getUserMedia not supported");
+        return;
+    }
+    
+    // Try multiple camera configurations
+    let constraints = [
+        { video: { facingMode: "environment" } }, // Back camera (preferred)
+        { video: true }, // Any camera
+        { video: { facingMode: "user" } } // Front camera (last resort)
+    ];
+    
+    // Try each constraint in sequence
+    tryNextConstraint(0);
+    
+    function tryNextConstraint(index) {
+        if (index >= constraints.length) {
+            updateStatus("Could not access any camera. Please check permissions and try again.");
+            return;
+        }
+        
+        navigator.mediaDevices.getUserMedia(constraints[index])
+            .then(handleStream)
+            .catch(error => {
+                console.error(`Camera constraint ${index} failed:`, error);
+                // Try next constraint
+                tryNextConstraint(index + 1);
+            });
+    }
+    
+    function handleStream(stream) {
+        videoElem.srcObject = stream;
+        videoElem.setAttribute("playsinline", true); // Required for iOS
+        videoElem.setAttribute("autoplay", true);
+        videoElem.muted = true;
+        
+        videoElem.onloadedmetadata = () => {
+            videoElem.play()
+                .then(() => {
+                    updateStatus("Camera access granted. Scanning for QR code...");
+                    startScanning();
+                })
+                .catch(playError => {
+                    console.error("Error playing video:", playError);
+                    updateStatus(`Error playing video: ${playError.message}`);
+                });
+        };
+    }
+    
+    function startScanning() {
+        // Create canvas for QR detection
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext('2d');
+        let scanning = true;
+        
+        const scanQRCode = function() {
+            if (!scanning) return;
             
-            // Create canvas for QR detection
-            const canvas = document.createElement('canvas');
-            const context = canvas.getContext('2d');
-            let scanning = true;
-            
-            const scanQRCode = function() {
-                if (!scanning) return;
-                
+            try {
                 if (videoElem.readyState === videoElem.HAVE_ENOUGH_DATA) {
                     canvas.height = videoElem.videoHeight;
                     canvas.width = videoElem.videoWidth;
@@ -373,7 +433,15 @@ function startQRScanner(videoElementId, targetTextarea) {
                     
                     const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
                     
-                    // Use jsQR library for QR detection (this integrates with jsQR.js)
+                    // Check if jsQR is available
+                    if (typeof jsQR === 'undefined') {
+                        updateStatus("QR scanning library not loaded");
+                        console.error("jsQR is not defined");
+                        scanning = false;
+                        return;
+                    }
+                    
+                    // Use jsQR library for QR detection
                     const code = jsQR(imageData.data, imageData.width, imageData.height);
                     
                     if (code) {
@@ -392,20 +460,42 @@ function startQRScanner(videoElementId, targetTextarea) {
                         videoElem.style.display = 'none';
                     }
                 }
-                
-                // Continue scanning
-                if (scanning) {
-                    requestAnimationFrame(scanQRCode);
-                }
-            };
+            } catch (scanError) {
+                console.error("Error scanning QR code:", scanError);
+                updateStatus(`Error scanning: ${scanError.message}`);
+                scanning = false;
+            }
             
-            // Start scanning
-            scanQRCode();
-        })
-        .catch(function(error) {
-            updateStatus(`Error accessing camera: ${error.message}`);
-            console.error("Camera Error:", error);
-        });
+            // Continue scanning
+            if (scanning) {
+                requestAnimationFrame(scanQRCode);
+            }
+        };
+        
+        // Start scanning
+        scanQRCode();
+    }
+}
+
+// Add to the HTML file to inform users about requirements
+function addCameraInstructions() {
+    const container = document.createElement('div');
+    container.className = 'camera-instructions';
+    container.innerHTML = `
+        <strong>Camera Access Required for QR Scanning</strong>
+        <ul>
+            <li>Make sure you're on a secure (HTTPS) connection</li>
+            <li>Allow camera permission when prompted</li>
+            <li>If using mobile, check app permissions in device settings</li>
+            <li>Try refreshing the page if camera doesn't initialize</li>
+        </ul>
+    `;
+    
+    // Insert instructions before the first QR scanner button
+    const firstScanButton = document.getElementById('scanQRBtn1');
+    if (firstScanButton && firstScanButton.parentNode) {
+        firstScanButton.parentNode.insertBefore(container, firstScanButton);
+    }
 }
 
 // Make sure the libraries are loaded before initializing the QR features
