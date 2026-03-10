@@ -124,6 +124,25 @@ createOfferBtn.addEventListener('click', async () => {
         localConnection.onconnectionstatechange = () => {
             console.log(`Peer 1: ${localConnection.connectionState}`);
             updateStatus(`Peer 1: ${localConnection.connectionState}`);
+            
+            // Handle disconnection - requires manual reconnection
+            if (localConnection.connectionState === 'disconnected') {
+                updateStatus("Connection lost - please create a new offer");
+                chatContainer.classList.add('chat-disabled');
+            } else if (localConnection.connectionState === 'failed') {
+                updateStatus("Connection failed - please create a new offer");
+                chatContainer.classList.add('chat-disabled');
+            }
+        };
+        
+        localConnection.oniceconnectionstatechange = () => {
+            console.log(`Peer 1 ICE state: ${localConnection.iceConnectionState}`);
+            
+            // Handle ICE connection failures
+            if (localConnection.iceConnectionState === 'failed') {
+                console.log("ICE connection failed - may need ICE restart");
+                updateStatus("Network issue detected - connection may be lost");
+            }
         };
         
         // Create data channel
@@ -138,6 +157,11 @@ createOfferBtn.addEventListener('click', async () => {
         sendChannel.onclose = () => {
             console.log("Send channel closed");
             chatContainer.classList.add('chat-disabled');
+        };
+        
+        sendChannel.onerror = (error) => {
+            console.error("Data channel error:", error);
+            updateStatus("Data channel error occurred");
         };
         
         sendChannel.onmessage = (e) => {
@@ -179,6 +203,24 @@ createAnswerBtn.addEventListener('click', async () => {
         
         remoteConnection.onconnectionstatechange = () => {
             console.log(`Peer 2: ${remoteConnection.connectionState}`);
+            
+            // Handle disconnection - requires manual reconnection
+            if (remoteConnection.connectionState === 'disconnected') {
+                updateStatus("Connection lost - please create a new offer/answer");
+                chatContainer.classList.add('chat-disabled');
+            } else if (remoteConnection.connectionState === 'failed') {
+                updateStatus("Connection failed - please create a new offer/answer");
+                chatContainer.classList.add('chat-disabled');
+            }
+        };
+        
+        remoteConnection.oniceconnectionstatechange = () => {
+            console.log(`Peer 2 ICE state: ${remoteConnection.iceConnectionState}`);
+            
+            if (remoteConnection.iceConnectionState === 'failed') {
+                console.log("ICE connection failed on Peer 2");
+                updateStatus("Network issue detected");
+            }
         };
         
         // Handle incoming data channel
@@ -201,6 +243,11 @@ createAnswerBtn.addEventListener('click', async () => {
             receiveChannel.onclose = () => {
                 console.log("Receive channel closed");
                 chatContainer.classList.add('chat-disabled');
+            };
+            
+            receiveChannel.onerror = (error) => {
+                console.error("Data channel error:", error);
+                updateStatus("Data channel error occurred");
             };
         };
         
