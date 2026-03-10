@@ -1,14 +1,11 @@
-// Global variables
-let pc1 = null;
-let pc2 = null;
+// Configuration
 let configuration = { 
-    iceServers: [ ] 
+    iceServers: [] 
 };
 
-// Elements
+// DOM Elements
 const createOfferBtn = document.getElementById('createOffer');
 const createAnswerBtn = document.getElementById('createAnswer');
-const setRemoteOfferBtn = document.getElementById('setRemoteOffer');
 const setRemoteAnswerBtn = document.getElementById('setRemoteAnswer');
 const localSdp1 = document.getElementById('localSdp1');
 const remoteSdp1 = document.getElementById('remoteSdp1');
@@ -17,26 +14,24 @@ const remoteSdp2 = document.getElementById('remoteSdp2');
 const statusDiv = document.getElementById('status');
 const stunServerInput = document.getElementById('stunServer');
 const updateStunBtn = document.getElementById('updateStun');
-
-// Chat elements
 const chatContainer = document.getElementById('chatContainer');
 const chatMessages = document.getElementById('chatMessages');
 const messageInput = document.getElementById('messageInput');
 const sendButton = document.getElementById('sendButton');
 
-// Variables for peer connections and data channels
+// Peer connections and data channels
 let localConnection = null;
 let remoteConnection = null;
 let sendChannel = null;
 let receiveChannel = null;
 
-// Status update function
+// Update status message
 function updateStatus(message) {
     statusDiv.textContent = `Status: ${message}`;
     console.log(message);
 }
 
-// Add a message to the chat
+// Add message to chat UI
 function addMessageToChat(text, isLocal = false) {
     const messageElement = document.createElement('div');
     messageElement.classList.add('message');
@@ -46,17 +41,33 @@ function addMessageToChat(text, isLocal = false) {
     chatMessages.scrollTop = chatMessages.scrollHeight;
 }
 
-// Send a message via data channel
+// Send message through data channel
 function sendMessage() {
     const message = messageInput.value.trim();
-    if (message && sendChannel && sendChannel.readyState === 'open') {
-        sendChannel.send(message);
+    if (!message) return;
+    
+    // Try sendChannel first (Peer 1), then receiveChannel (Peer 2)
+    const channel = sendChannel || receiveChannel;
+    
+    console.log("Attempting to send message");
+    console.log("sendChannel:", sendChannel ? sendChannel.readyState : "null");
+    console.log("receiveChannel:", receiveChannel ? receiveChannel.readyState : "null");
+    console.log("Using channel with state:", channel ? channel.readyState : "no channel");
+    
+    if (channel && channel.readyState === 'open') {
+        channel.send(message);
         addMessageToChat(message, true);
         messageInput.value = '';
+        // Ensure chat stays enabled
+        chatContainer.classList.remove('chat-disabled');
+        console.log("Message sent successfully");
+    } else {
+        console.log("Cannot send - channel state:", channel ? channel.readyState : "no channel");
+        updateStatus('Cannot send message - connection not established');
     }
 }
 
-// Add event listeners for chat
+// Chat event listeners
 sendButton.addEventListener('click', sendMessage);
 messageInput.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') {
@@ -64,497 +75,167 @@ messageInput.addEventListener('keypress', (e) => {
     }
 });
 
-// Update STUN server configuration
+// Update STUN server
 function updateStunServer() {
     const stunUrl = stunServerInput.value.trim();
     if (stunUrl) {
-        configuration = {
-            iceServers: [
-                { urls: stunUrl }
-            ]
-        };
-        updateStatus(`STUN server updated to: ${stunUrl}`);
+        configuration = { iceServers: [{ urls: stunUrl }] };
+        updateStatus(`STUN server set: ${stunUrl}`);
     } else {
-        configuration = {
-            iceServers: []
-        };
-        updateStatus("STUN server removed. Using direct connection only.");
+        configuration = { iceServers: [] };
+        updateStatus("No STUN server - direct connection only");
     }
-    // Reinitialize peer connections with new configuration
-    createPeerConnections();
 }
 
-// Add event listener for STUN server update button
 updateStunBtn.addEventListener('click', updateStunServer);
 
-// Initialize RTCPeerConnection objects
-function createPeerConnections() {
-    if (localConnection) localConnection.close();
-    if (remoteConnection) remoteConnection.close();
-    
-    // Create local connection
-    localConnection = new RTCPeerConnection(configuration);
-    
-    localConnection.onicecandidate = e => {
-        console.log("NEW ice candidate!! on localconnection reprinting SDP");
-        console.log(JSON.stringify(localConnection.localDescription));
-        
-        // Update the local SDP textarea
-        localSdp1.value = JSON.stringify(localConnection.localDescription);
-        updateStatus("Offer created with ICE candidates. Copy it to Peer 2.");
-    };
-    
-    // Connection state change to enable/disable chat
-    localConnection.onconnectionstatechange = () => {
-        console.log(`Peer 1 connection state: ${localConnection.connectionState}`);
-        updateStatus(`Peer 1 connection state: ${localConnection.connectionState}`);
-        
-        if (localConnection.connectionState === 'connected') {
-            // Enable chat when connected
-            chatContainer.classList.remove('chat-disabled');
-        } else {
-            // Disable chat when not connected
-            chatContainer.classList.add('chat-disabled');
-        }
-    };
-    
-    // Create remote connection
-    remoteConnection = new RTCPeerConnection(configuration);
-    
-    remoteConnection.onicecandidate = e => {
-        console.log("NEW ice candidate!! on remoteConnection reprinting SDP");
-        console.log(JSON.stringify(remoteConnection.localDescription));
-        
-        // Update the local SDP textarea
-        localSdp2.value = JSON.stringify(remoteConnection.localDescription);
-        updateStatus("Answer created with ICE candidates. Copy it to Peer 1.");
-    };
-    
-    // Create data channel
-    sendChannel = localConnection.createDataChannel("sendChannel");
-    sendChannel.onmessage = e => {
-        console.log("message received!!! " + e.data);
-        addMessageToChat(e.data, false);
-    };
-    sendChannel.onopen = e => {
-        console.log("open!!!!");
-        updateStatus("Data channel is open!");
-        chatContainer.classList.remove('chat-disabled');
-    };
-    sendChannel.onclose = e => {
-        console.log("closed!!!!!!");
-        chatContainer.classList.add('chat-disabled');
-    };
-    
-    // Handle incoming data channel on remote connection
-    remoteConnection.ondatachannel = (event) => {
-        receiveChannel = event.channel;
-        receiveChannel.onmessage = e => {
-            console.log("Message from data channel: " + e.data);
-            updateStatus(`Message received: ${e.data}`);
-            addMessageToChat(e.data, false);
-        };
-        receiveChannel.onopen = e => {
-            console.log("Data channel connection established");
-            updateStatus("Data channel connection established on Peer 2");
-        };
-        receiveChannel.onclose = e => {
-            console.log("Remote data channel closed");
-            chatContainer.classList.add('chat-disabled');
-        };
-    };
-    
-    updateStatus("Peer connections initialized");
-}
+// Initialize on load - just set status
+window.addEventListener('load', () => {
+    updateStatus("Ready - create an offer on Peer 1 or paste offer on Peer 2");
+    console.log("WebRTC chat ready");
+});
 
-// Initialize on page load
-window.addEventListener('load', createPeerConnections);
-
-// Function to safely parse JSON
-function safeJsonParse(jsonString) {
+// Parse JSON safely
+function parseJSON(text) {
     try {
-        return JSON.parse(jsonString);
+        return JSON.parse(text);
     } catch (error) {
-        updateStatus(`JSON parsing error: ${error.message}. Please check the SDP format.`);
-        console.error("JSON Parse Error:", error);
+        updateStatus(`Invalid JSON: ${error.message}`);
+        console.error("Parse error:", error);
         return null;
     }
 }
 
-// Create offer
+// Create Offer (Peer 1)
 createOfferBtn.addEventListener('click', async () => {
     try {
-        createPeerConnections(); // Reset connections
+        // Reset only the local connection for Peer 1
+        if (localConnection) localConnection.close();
+        sendChannel = null;
         
-        // Simple offer creation as requested
-        localConnection.createOffer()
-            .then(o => localConnection.setLocalDescription(o))
-            .then(() => {
-                updateStatus("Creating offer... waiting for ICE gathering to complete");
-            })
-            .catch(err => {
-                updateStatus(`Error setting local description: ${err.message}`);
-            });
+        localConnection = new RTCPeerConnection(configuration);
+        
+        localConnection.onicecandidate = () => {
+            console.log("ICE candidate for Peer 1");
+            localSdp1.value = JSON.stringify(localConnection.localDescription);
+            updateStatus("Offer ready - copy to Peer 2");
+        };
+        
+        localConnection.onconnectionstatechange = () => {
+            console.log(`Peer 1: ${localConnection.connectionState}`);
+            updateStatus(`Peer 1: ${localConnection.connectionState}`);
+        };
+        
+        // Create data channel
+        sendChannel = localConnection.createDataChannel("chat");
+        
+        sendChannel.onopen = () => {
+            console.log("Send channel opened");
+            updateStatus("Connected! You can now chat");
+            chatContainer.classList.remove('chat-disabled');
+        };
+        
+        sendChannel.onclose = () => {
+            console.log("Send channel closed");
+            chatContainer.classList.add('chat-disabled');
+        };
+        
+        sendChannel.onmessage = (e) => {
+            console.log("Message received:", e.data);
+            addMessageToChat(e.data, false);
+        };
+        
+        const offer = await localConnection.createOffer();
+        await localConnection.setLocalDescription(offer);
+        updateStatus("Creating offer... gathering ICE candidates");
     } catch (error) {
-        updateStatus(`Error creating offer: ${error.message}`);
+        updateStatus(`Error: ${error.message}`);
+        console.error(error);
     }
 });
 
-// Set remote offer and create answer
+// Create Answer (Peer 2)
 createAnswerBtn.addEventListener('click', async () => {
     try {
         if (!remoteSdp2.value) {
-            updateStatus("Please paste the offer SDP first");
+            updateStatus("Please paste the offer first");
             return;
         }
         
-        const offerDesc = safeJsonParse(remoteSdp2.value);
-        if (!offerDesc) return;
+        const offer = parseJSON(remoteSdp2.value);
+        if (!offer) return;
         
-        remoteConnection.setRemoteDescription(new RTCSessionDescription(offerDesc))
-            .then(() => remoteConnection.createAnswer())
-            .then(a => remoteConnection.setLocalDescription(a))
-            .then(() => {
-                updateStatus("Creating answer... waiting for ICE gathering to complete");
-            })
-            .catch(err => {
-                updateStatus(`Error in answer creation: ${err.message}`);
-            });
+        // Reset only the remote connection for Peer 2
+        if (remoteConnection) remoteConnection.close();
+        receiveChannel = null;
+        
+        remoteConnection = new RTCPeerConnection(configuration);
+        
+        remoteConnection.onicecandidate = () => {
+            console.log("ICE candidate for Peer 2");
+            localSdp2.value = JSON.stringify(remoteConnection.localDescription);
+            updateStatus("Answer ready - copy to Peer 1");
+        };
+        
+        remoteConnection.onconnectionstatechange = () => {
+            console.log(`Peer 2: ${remoteConnection.connectionState}`);
+        };
+        
+        // Handle incoming data channel
+        remoteConnection.ondatachannel = (event) => {
+            console.log("Data channel received on Peer 2");
+            receiveChannel = event.channel;
+            console.log("Channel state:", receiveChannel.readyState);
+            
+            receiveChannel.onopen = () => {
+                console.log("Receive channel opened");
+                updateStatus("Connected! You can now chat");
+                chatContainer.classList.remove('chat-disabled');
+            };
+            
+            receiveChannel.onmessage = (e) => {
+                console.log("Message received:", e.data);
+                addMessageToChat(e.data, false);
+            };
+            
+            receiveChannel.onclose = () => {
+                console.log("Receive channel closed");
+                chatContainer.classList.add('chat-disabled');
+            };
+        };
+        
+        await remoteConnection.setRemoteDescription(new RTCSessionDescription(offer));
+        const answer = await remoteConnection.createAnswer();
+        await remoteConnection.setLocalDescription(answer);
+        updateStatus("Creating answer... gathering ICE candidates");
     } catch (error) {
-        updateStatus(`Error creating answer: ${error.message}`);
+        updateStatus(`Error: ${error.message}`);
+        console.error(error);
     }
 });
 
-// Set remote offer (for Peer 2)
-setRemoteOfferBtn.addEventListener('click', async () => {
-    try {
-        if (!remoteSdp2.value) {
-            updateStatus("Please paste the offer SDP first");
-            return;
-        }
-        
-        const offerDesc = safeJsonParse(remoteSdp2.value);
-        if (!offerDesc) return;
-        
-        remoteConnection.setRemoteDescription(new RTCSessionDescription(offerDesc))
-            .then(() => {
-                updateStatus("Remote offer set on Peer 2");
-            })
-            .catch(err => {
-                updateStatus(`Error setting remote description: ${err.message}`);
-            });
-    } catch (error) {
-        updateStatus(`Error setting remote offer: ${error.message}`);
-    }
-});
-
-// Set remote answer (for Peer 1)
+// Set Answer (Peer 1)
 setRemoteAnswerBtn.addEventListener('click', async () => {
     try {
         if (!remoteSdp1.value) {
-            updateStatus("Please paste the answer SDP first");
+            updateStatus("Please paste the answer first");
             return;
         }
         
-        const answerDesc = safeJsonParse(remoteSdp1.value);
-        if (!answerDesc) return;
+        const answer = parseJSON(remoteSdp1.value);
+        if (!answer) return;
         
-        localConnection.setRemoteDescription(new RTCSessionDescription(answerDesc))
-            .then(() => {
-                updateStatus("Remote answer set on Peer 1");
-            })
-            .catch(err => {
-                updateStatus(`Error setting remote answer: ${err.message}`);
-            });
+        await localConnection.setRemoteDescription(new RTCSessionDescription(answer));
+        updateStatus("Answer set - connection establishing...");
     } catch (error) {
-        updateStatus(`Error setting remote answer: ${error.message}`);
+        updateStatus(`Error: ${error.message}`);
+        console.error(error);
     }
 });
 
-// Add debug console output to help diagnose issues
-console.log("WebRTC script loaded and running");
-
-// Check browser WebRTC support
+// Check WebRTC support
 if (typeof RTCPeerConnection === 'undefined') {
-    updateStatus("ERROR: Your browser doesn't support WebRTC");
-    console.error("WebRTC not supported");
+    updateStatus("ERROR: WebRTC not supported in this browser");
 } else {
-    console.log("WebRTC is supported in this browser");
+    console.log("WebRTC supported");
 }
-
-// QR Code Functions
-function generateQRCode(data, elementId) {
-    try {
-        const container = document.getElementById(elementId);
-        container.innerHTML = ''; // Clear previous QR code
-        
-        // Check if QRCode library is available
-        if (typeof QRCode === 'undefined') {
-            updateStatus("QR Code library not loaded. Please check console for errors.");
-            console.error("QRCode library is not defined");
-            return;
-        }
-        
-        // Simple QR generation without using correctLevel
-        var qrcode = new QRCode(container, {
-            text: data,
-            width: 200,
-            height: 200,
-            colorDark : "#000000",
-            colorLight : "#ffffff",
-            correctLevel : QRCode.CorrectLevel.L
-        });
-        
-        updateStatus("QR code generated successfully");
-    } catch (error) {
-        updateStatus(`Error generating QR code: ${error.message}`);
-        console.error("QR Code Error:", error);
-    }
-}
-
-// Generate QR codes for SDPs
-function generateSDPQRCodes() {
-    // Generate QR for local SDP (Peer 1 - Offer)
-    document.getElementById('genQRBtn1').addEventListener('click', () => {
-        if (localSdp1.value) {
-            generateQRCode(localSdp1.value, 'qrcode1');
-            updateStatus("QR code generated for offer");
-        } else {
-            updateStatus("No offer SDP available to generate QR code");
-        }
-    });
-    
-    // Generate QR for local SDP (Peer 2 - Answer)
-    document.getElementById('genQRBtn2').addEventListener('click', () => {
-        if (localSdp2.value) {
-            generateQRCode(localSdp2.value, 'qrcode2');
-            updateStatus("QR code generated for answer");
-        } else {
-            updateStatus("No answer SDP available to generate QR code");
-        }
-    });
-}
-
-// Initialize QR scanner
-function initQRScanner() {
-    // Add camera instructions
-    addCameraInstructions();
-    
-    // Start scanning on button click for Peer 1
-    document.getElementById('scanQRBtn1').addEventListener('click', () => {
-        startQRScanner('qrScanner1', remoteSdp1);
-    });
-    
-    // Start scanning on button click for Peer 2
-    document.getElementById('scanQRBtn2').addEventListener('click', () => {
-        startQRScanner('qrScanner2', remoteSdp2);
-    });
-}
-
-// Start QR scanner
-function startQRScanner(videoElementId, targetTextarea) {
-    const videoElem = document.getElementById(videoElementId);
-    videoElem.style.display = 'block'; // Make sure video element is visible
-    
-    // Show camera access instructions
-    updateStatus("Requesting camera access... Please allow camera permission when prompted");
-    
-    // Check if we're on a secure context
-    if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') {
-        updateStatus("Camera access requires HTTPS. Current protocol: " + window.location.protocol);
-        console.warn("Camera access requires HTTPS. Try using localhost or enabling HTTPS.");
-    }
-    
-    // Check if mediaDevices API is available
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        updateStatus("Camera access not supported by this browser");
-        console.error("getUserMedia not supported");
-        return;
-    }
-    
-    // Try multiple camera configurations
-    let constraints = [
-        { video: { facingMode: "environment" } }, // Back camera (preferred)
-        { video: true }, // Any camera
-        { video: { facingMode: "user" } } // Front camera (last resort)
-    ];
-    
-    // Try each constraint in sequence
-    tryNextConstraint(0);
-    
-    function tryNextConstraint(index) {
-        if (index >= constraints.length) {
-            updateStatus("Could not access any camera. Please check permissions and try again.");
-            return;
-        }
-        
-        navigator.mediaDevices.getUserMedia(constraints[index])
-            .then(handleStream)
-            .catch(error => {
-                console.error(`Camera constraint ${index} failed:`, error);
-                // Try next constraint
-                tryNextConstraint(index + 1);
-            });
-    }
-    
-    function handleStream(stream) {
-        videoElem.srcObject = stream;
-        videoElem.setAttribute("playsinline", true); // Required for iOS
-        videoElem.setAttribute("autoplay", true);
-        videoElem.muted = true;
-        
-        videoElem.onloadedmetadata = () => {
-            videoElem.play()
-                .then(() => {
-                    updateStatus("Camera access granted. Scanning for QR code...");
-                    startScanning();
-                })
-                .catch(playError => {
-                    console.error("Error playing video:", playError);
-                    updateStatus(`Error playing video: ${playError.message}`);
-                });
-        };
-    }
-    
-    function startScanning() {
-        // Create canvas for QR detection
-        const canvas = document.createElement('canvas');
-        const context = canvas.getContext('2d');
-        let scanning = true;
-        
-        const scanQRCode = function() {
-            if (!scanning) return;
-            
-            try {
-                if (videoElem.readyState === videoElem.HAVE_ENOUGH_DATA) {
-                    canvas.height = videoElem.videoHeight;
-                    canvas.width = videoElem.videoWidth;
-                    context.drawImage(videoElem, 0, 0, canvas.width, canvas.height);
-                    
-                    const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
-                    
-                    // Check if jsQR is available
-                    if (typeof jsQR === 'undefined') {
-                        updateStatus("QR scanning library not loaded");
-                        console.error("jsQR is not defined");
-                        scanning = false;
-                        return;
-                    }
-                    
-                    // Use jsQR library for QR detection
-                    const code = jsQR(imageData.data, imageData.width, imageData.height);
-                    
-                    if (code) {
-                        // We found a QR code
-                        scanning = false;
-                        
-                        // Stop video stream
-                        videoElem.srcObject.getTracks().forEach(track => track.stop());
-                        videoElem.srcObject = null;
-                        
-                        // Set the scanned data to the textarea
-                        targetTextarea.value = code.data;
-                        updateStatus("QR code scanned successfully!");
-                        
-                        // Hide video element
-                        videoElem.style.display = 'none';
-                    }
-                }
-            } catch (scanError) {
-                console.error("Error scanning QR code:", scanError);
-                updateStatus(`Error scanning: ${scanError.message}`);
-                scanning = false;
-            }
-            
-            // Continue scanning
-            if (scanning) {
-                requestAnimationFrame(scanQRCode);
-            }
-        };
-        
-        // Start scanning
-        scanQRCode();
-    }
-}
-
-// Add to the HTML file to inform users about requirements
-function addCameraInstructions() {
-    const container = document.createElement('div');
-    container.className = 'camera-instructions';
-    container.innerHTML = `
-        <strong>Camera Access Required for QR Scanning</strong>
-        <ul>
-            <li>Make sure you're on a secure (HTTPS) connection</li>
-            <li>Allow camera permission when prompted</li>
-            <li>If using mobile, check app permissions in device settings</li>
-            <li>Try refreshing the page if camera doesn't initialize</li>
-        </ul>
-    `;
-    
-    // Insert instructions before the first QR scanner button
-    const firstScanButton = document.getElementById('scanQRBtn1');
-    if (firstScanButton && firstScanButton.parentNode) {
-        firstScanButton.parentNode.insertBefore(container, firstScanButton);
-    }
-}
-
-// Make sure the libraries are loaded before initializing the QR features
-function checkLibrariesAndInitQR() {
-    // Wait a short time to make sure libraries have been loaded
-    setTimeout(() => {
-        console.log("Checking for QR libraries...");
-        console.log("QRCode availability:", typeof QRCode !== 'undefined');
-        console.log("jsQR availability:", typeof jsQR !== 'undefined');
-
-        // Initialize QR code functionality
-        if (typeof QRCode !== 'undefined') {
-            generateSDPQRCodes();
-            updateStatus("QR code generation ready");
-        } else {
-            console.error("QRCode library not loaded, adding it dynamically");
-            
-            // Attempt to dynamically load the QR code library
-            const qrScript = document.createElement('script');
-            qrScript.src = 'https://cdn.rawgit.com/davidshimjs/qrcodejs/gh-pages/qrcode.min.js';
-            qrScript.onload = () => {
-                console.log("QRCode library loaded dynamically");
-                generateSDPQRCodes();
-                updateStatus("QR code generation ready (loaded dynamically)");
-            };
-            qrScript.onerror = () => {
-                console.error("Failed to load QRCode library");
-                updateStatus("QR code generation unavailable - library failed to load");
-            };
-            document.head.appendChild(qrScript);
-        }
-        
-        // Initialize QR scanner
-        if (typeof jsQR !== 'undefined') {
-            initQRScanner();
-            updateStatus("QR code scanning ready");
-        } else {
-            console.error("jsQR library not loaded, adding it dynamically");
-            
-            // Attempt to dynamically load the jsQR library
-            const jsqrScript = document.createElement('script');
-            jsqrScript.src = 'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js';
-            jsqrScript.onload = () => {
-                console.log("jsQR library loaded dynamically");
-                initQRScanner();
-                updateStatus("QR code scanning ready (loaded dynamically)");
-            };
-            jsqrScript.onerror = () => {
-                console.error("Failed to load jsQR library");
-                updateStatus("QR code scanning unavailable - library failed to load");
-            };
-            document.head.appendChild(jsqrScript);
-        }
-    }, 1000);
-}
-
-// Update the load event listener to use our new initialization function
-window.addEventListener('load', function() {
-     
-    // Check if libraries are loaded and initialize QR features
-    checkLibrariesAndInitQR();
-});
