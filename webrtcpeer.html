@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebRTC Auto Chat</title>
+    <link rel="stylesheet" href="styles.css">
+    <!-- PeerJS library with built-in signaling server -->
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+</head>
+<body>
+    <h1>WebRTC Auto Chat (PeerJS)</h1>
+    <div style="text-align: center; margin: 10px 0; padding: 10px; background: #fff3cd; border-radius: 4px;">
+        <strong>Prefer manual signaling?</strong> Try the <a href="index.html" style="color: #0066cc; font-weight: bold;">Manual version</a>
+    </div>
+    
+    <div class="server-config">
+        <h3>Connection Setup</h3>
+        <div id="myPeerId" style="padding: 10px; background: #e3f2fd; border-radius: 4px; margin: 10px 0;">
+            <strong>Your ID:</strong> <span id="peerIdDisplay">Connecting...</span>
+        </div>
+        <div style="margin: 10px 0;">
+            <label for="remotePeerId">Connect to Peer ID:</label>
+            <input type="text" id="remotePeerId" placeholder="Enter peer ID to connect" />
+            <button id="connectBtn">Connect</button>
+        </div>
+    </div>
+    
+    <!-- Chat interface -->
+    <div class="chat-container chat-disabled" id="chatContainer">
+        <h2>Chat</h2>
+        <div class="chat-messages" id="chatMessages"></div>
+        <div class="chat-input">
+            <input type="text" id="messageInput" placeholder="Type a message..." />
+            <button id="sendButton">Send</button>
+        </div>
+        <div><small>Share your Peer ID with someone to start chatting</small></div>
+    </div>
+    
+    <div id="status">Status: Ready</div>
+    
+    <script src="webrtcpeer.js"></script>
+</body>
+</html>
