@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebRTC Persistent Chat</title>
+    <link rel="stylesheet" href="styles.css">
+    <!-- PeerJS library with built-in signaling server -->
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <style>
+        .session-info {
+            background: #d1ecf1;
+            border: 1px solid #bee5eb;
+            border-radius: 4px;
+            padding: 15px;
+            margin: 10px 0;
+        }
+        .session-restored {
+            background: #d4edda;
+            border-color: #c3e6cb;
+        }
+        .connection-status {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 5px;
+        }
+        .status-connected { background: #28a745; }
+        .status-connecting { background: #ffc107; }
+        .status-disconnected { background: #dc3545; }
+        .message-timestamp {
+            font-size: 0.8em;
+            color: #666;
+            margin-left: 5px;
+        }
+        .message.restored {
+            opacity: 0.8;
+            border-left: 3px solid #6c757d;
+            padding-left: 8px;
+        }
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin: 10px 0;
+        }
+        .btn-danger {
+            background-color: #dc3545;
+            border-color: #dc3545;
+        }
+        .btn-danger:hover {
+            background-color: #c82333;
+        }
+    </style>
+</head>
+<body>
+    <h1>WebRTC Persistent Chat</h1>
+    <div style="text-align: center; margin: 10px 0; padding: 10px; background: #fff3cd; border-radius: 4px;">
+        <strong>📌 Feature:</strong> Session persists across page refreshes! Try refreshing after connecting.
+        <br>
+        <a href="index.html" style="color: #0066cc; margin-right: 15px;">Manual version</a> | 
+        <a href="webrtcpeer.html" style="color: #0066cc;">Basic PeerJS version</a>
+    </div>
+    
+    <!-- Session Status -->
+    <div id="sessionStatus" class="session-info" style="display: none;">
+        <h3>📁 Session Status</h3>
+        <div id="sessionDetails"></div>
+    </div>
+    
+    <div class="server-config">
+        <h3>Connection Setup</h3>
+        <div id="myPeerId" style="padding: 10px; background: #e3f2fd; border-radius: 4px; margin: 10px 0;">
+            <strong>Your ID:</strong> <span id="peerIdDisplay">Initializing...</span>
+            <button id="copyIdBtn" style="margin-left: 10px; padding: 2px 8px;">Copy</button>
+        </div>
+        <div style="margin: 10px 0;">
+            <label for="remotePeerId">Connect to Peer ID:</label>
+            <input type="text" id="remotePeerId" placeholder="Enter peer ID to connect" />
+            <div class="button-group">
+                <button id="connectBtn">Connect</button>
+                <button id="clearSessionBtn" class="btn-danger">Clear Session</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Chat interface -->
+    <div class="chat-container chat-disabled" id="chatContainer">
+        <h2>Chat 
+            <span id="connectionStatusIndicator">
+                <span class="connection-status status-disconnected"></span>
+                <span id="connectionStatusText">Disconnected</span>
+            </span>
+        </h2>
+        <div class="chat-messages" id="chatMessages"></div>
+        <div class="chat-input">
+            <input type="text" id="messageInput" placeholder="Type a message..." />
+            <button id="sendButton">Send</button>
+        </div>
+        <div><small id="chatHint">Share your Peer ID with someone to start chatting</small></div>
+    </div>
+    
+    <div id="status">Status: Ready</div>
+    
+    <script src="webrtcpersistent.js"></script>
+</body>
+</html>
