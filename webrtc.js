@@ -365,7 +365,7 @@ createOfferBtn.addEventListener('click', async () => {
         
         sendChannel.onclose = () => {
             console.log("Send channel closed");
-            stopStatsLogging();
+           // stopStatsLogging();
             chatContainer.classList.add('chat-disabled');
         };
         
@@ -443,7 +443,7 @@ createAnswerBtn.addEventListener('click', async () => {
                 console.log("Receive channel opened");
                 updateStatus("Connected! You can now chat");
                 chatContainer.classList.remove('chat-disabled');
-                startStatsLogging();
+               
             };
             
             receiveChannel.onmessage = (e) => {
