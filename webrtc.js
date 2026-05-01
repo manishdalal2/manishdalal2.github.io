@@ -301,6 +301,8 @@ updateStunBtn.addEventListener('click', updateStunServer);
 window.addEventListener('load', () => {
     updateStatus("Ready - create an offer on Peer 1 or paste offer on Peer 2");
     console.log("WebRTC chat ready");
+    // Start logging immediately to capture initial states (new, connecting, etc.)
+    startStatsLogging();
 });
 
 // Parse JSON safely
