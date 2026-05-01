@@ -33,6 +33,9 @@ let statsInterval = null;
 let statsCounter = 0;
 let dbPromise = null;
 
+// Track last logged state to avoid duplicate entries
+const lastStatsState = new Map(); // key: connectionName, value: {connectionState, iceConnectionState, signalingState}
+
 // Initialize IndexedDB
 function initStatsDB() {
     if (dbPromise) return dbPromise;
@@ -84,9 +87,11 @@ async function storeStatsEntry(entry) {
     }
 }
 
-// Start periodic stats logging
+// Start periodic stats logging - only logs when state changes
 function startStatsLogging() {
     stopStatsLogging();
+    lastStatsState.clear(); // Reset state tracking on new connection
+
     statsInterval = setInterval(async () => {
         const connections = [
             { name: 'localConnection', pc: localConnection },
@@ -96,6 +101,25 @@ function startStatsLogging() {
         for (const { name, pc } of connections) {
             if (!pc || pc.signalingState === 'closed') continue;
 
+            // Get current state
+            const currentState = {
+                connectionState: pc.connectionState,
+                iceConnectionState: pc.iceConnectionState,
+                signalingState: pc.signalingState
+            };
+
+            // Check if state changed from last logged state
+            const lastState = lastStatsState.get(name);
+            const stateChanged = !lastState ||
+                lastState.connectionState !== currentState.connectionState ||
+                lastState.iceConnectionState !== currentState.iceConnectionState ||
+                lastState.signalingState !== currentState.signalingState;
+
+            if (!stateChanged) {
+                // Skip logging - no state change
+                continue;
+            }
+
             try {
                 const stats = await pc.getStats();
                 const timestamp = new Date().toISOString();
@@ -104,21 +128,22 @@ function startStatsLogging() {
                 const statsData = [];
                 stats.forEach(report => {
                     statsData.push(report);
-                    console.log(`[${name}] [${statsCounter}]`, report);
+                    console.log(`[${name}] [${statsCounter}] state=${currentState.connectionState}, ice=${currentState.iceConnectionState}`, report);
                 });
 
                 const statsEntry = {
                     counter: statsCounter,
                     timestamp: timestamp,
                     connectionName: name,
-                    connectionState: pc.connectionState,
-                    iceConnectionState: pc.iceConnectionState,
-                    signalingState: pc.signalingState,
+                    ...currentState,
                     reports: statsData
                 };
 
                 // Async store - non-blocking
-                storeStatsEntry(statsEntry);
+                await storeStatsEntry(statsEntry);
+
+                // Update last logged state
+                lastStatsState.set(name, currentState);
             } catch (e) {
                 console.error(`Error getting stats for ${name}:`, e);
             }
@@ -201,6 +226,7 @@ async function clearAllStats() {
             req.onerror = () => reject(req.error);
         });
         statsCounter = 0;
+        lastStatsState.clear(); // Reset state tracking
         console.log('All WebRTC stats cleared from IndexedDB');
     } catch (e) {
         console.error('Failed to clear stats:', e);
