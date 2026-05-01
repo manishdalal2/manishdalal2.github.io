@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebRTC Logs Viewer</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        h1 {
+            margin-top: 0;
+        }
+        .controls {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .controls button {
+            padding: 8px 16px;
+            margin-right: 10px;
+            margin-bottom: 10px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .btn-primary {
+            background: #2196F3;
+            color: white;
+        }
+        .btn-danger {
+            background: #f44336;
+            color: white;
+        }
+        .btn-success {
+            background: #4CAF50;
+            color: white;
+        }
+        .filter-row {
+            margin-top: 10px;
+        }
+        .filter-row select, .filter-row input {
+            padding: 6px 10px;
+            margin-right: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .stats-table {
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+        th {
+            background: #2196F3;
+            color: white;
+            padding: 12px;
+            text-align: left;
+            font-weight: 500;
+            position: sticky;
+            top: 0;
+        }
+        td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #eee;
+            vertical-align: top;
+        }
+        tr:hover {
+            background: #f5f5f5;
+        }
+        tr:nth-child(even) {
+            background: #fafafa;
+        }
+        .badge {
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+        .badge-connected { background: #4CAF50; color: white; }
+        .badge-disconnected { background: #ff9800; color: white; }
+        .badge-failed { background: #f44336; color: white; }
+        .badge-connecting { background: #2196F3; color: white; }
+        .badge-new { background: #9e9e9e; color: white; }
+        .timestamp {
+            font-family: monospace;
+            font-size: 12px;
+            color: #666;
+        }
+        .counter {
+            font-weight: bold;
+            color: #2196F3;
+        }
+        .reports-preview {
+            max-width: 300px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            cursor: pointer;
+            color: #2196F3;
+        }
+        .reports-preview:hover {
+            text-decoration: underline;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+        }
+        .modal-content {
+            background: white;
+            margin: 50px auto;
+            padding: 20px;
+            width: 90%;
+            max-width: 900px;
+            max-height: 80vh;
+            overflow-y: auto;
+            border-radius: 8px;
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .modal-close {
+            font-size: 24px;
+            cursor: pointer;
+            color: #999;
+        }
+        .modal-close:hover {
+            color: #333;
+        }
+        pre {
+            background: #f5f5f5;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-size: 12px;
+            max-height: 60vh;
+        }
+        .no-data {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+        }
+        .summary {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .summary-item {
+            display: inline-block;
+            margin-right: 30px;
+        }
+        .summary-label {
+            font-size: 12px;
+            color: #999;
+        }
+        .summary-value {
+            font-size: 20px;
+            font-weight: bold;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <h1>📊 WebRTC Logs Viewer</h1>
+
+    <div class="controls">
+        <button class="btn-primary" onclick="loadStats()">🔄 Refresh Logs</button>
+        <button class="btn-success" onclick="exportStats()">📥 Export JSON</button>
+        <button class="btn-danger" onclick="clearStats()">🗑️ Clear All</button>
+        <div class="filter-row">
+            <select id="filterConnection">
+                <option value="">All Connections</option>
+                <option value="localConnection">localConnection (Peer 1)</option>
+                <option value="remoteConnection">remoteConnection (Peer 2)</option>
+            </select>
+            <select id="filterState">
+                <option value="">All States</option>
+                <option value="connected">Connected</option>
+                <option value="disconnected">Disconnected</option>
+                <option value="failed">Failed</option>
+                <option value="connecting">Connecting</option>
+                <option value="new">New</option>
+            </select>
+            <button class="btn-primary" onclick="applyFilter()">Filter</button>
+            <button onclick="resetFilter()">Reset</button>
+        </div>
+    </div>
+
+    <div class="summary" id="summary" style="display:none;">
+        <div class="summary-item">
+            <div class="summary-label">Total Entries</div>
+            <div class="summary-value" id="totalEntries">0</div>
+        </div>
+        <div class="summary-item">
+            <div class="summary-label">Local Entries</div>
+            <div class="summary-value" id="localEntries">0</div>
+        </div>
+        <div class="summary-item">
+            <div class="summary-label">Remote Entries</div>
+            <div class="summary-value" id="remoteEntries">0</div>
+        </div>
+        <div class="summary-item">
+            <div class="summary-label">Failed States</div>
+            <div class="summary-value" id="failedEntries" style="color:#f44336;">0</div>
+        </div>
+    </div>
+
+    <div class="stats-table">
+        <div class="no-data" id="noData">Click "Refresh Logs" to load data</div>
+        <table id="statsTable" style="display:none;">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Time</th>
+                    <th>Connection</th>
+                    <th>Connection State</th>
+                    <th>ICE State</th>
+                    <th>Signaling</th>
+                    <th>Reports</th>
+                </tr>
+            </thead>
+            <tbody id="statsBody">
+            </tbody>
+        </table>
+    </div>
+
+    <div class="modal" id="modal" onclick="closeModal(event)">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h3>Stats Report Details</h3>
+                <span class="modal-close" onclick="closeModal()">&times;</span>
+            </div>
+            <pre id="modalContent"></pre>
+        </div>
+    </div>
+
+    <script>
+        const DB_NAME = 'webrtc_stats_db';
+        const DB_VERSION = 1;
+        const STORE_NAME = 'stats';
+        let allStats = [];
+
+        function initDB() {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open(DB_NAME, DB_VERSION);
+                request.onerror = () => reject(request.error);
+                request.onsuccess = () => resolve(request.result);
+                request.onupgradeneeded = (e) => {
+                    const db = e.target.result;
+                    if (!db.objectStoreNames.contains(STORE_NAME)) {
+                        db.createObjectStore(STORE_NAME, { keyPath: 'id', autoIncrement: true });
+                    }
+                };
+            });
+        }
+
+        async function loadStats() {
+            try {
+                const db = await initDB();
+                const tx = db.transaction(STORE_NAME, 'readonly');
+                const store = tx.objectStore(STORE_NAME);
+                
+                allStats = await new Promise((resolve, reject) => {
+                    const req = store.getAll();
+                    req.onsuccess = () => resolve(req.result);
+                    req.onerror = () => reject(req.error);
+                });
+
+                allStats.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+                renderStats(allStats);
+                updateSummary(allStats);
+            } catch (e) {
+                alert('Error loading stats: ' + e.message);
+            }
+        }
+
+        function renderStats(stats) {
+            const tbody = document.getElementById('statsBody');
+            const table = document.getElementById('statsTable');
+            const noData = document.getElementById('noData');
+
+            if (stats.length === 0) {
+                tbody.innerHTML = '';
+                table.style.display = 'none';
+                noData.style.display = 'block';
+                noData.textContent = 'No stats found. Use the WebRTC app first, then refresh.';
+                return;
+            }
+
+            noData.style.display = 'none';
+            table.style.display = 'table';
+
+            tbody.innerHTML = stats.map(stat => `
+                <tr>
+                    <td class="counter">${stat.counter}</td>
+                    <td class="timestamp">${formatTime(stat.timestamp)}</td>
+                    <td>${stat.connectionName}</td>
+                    <td>${getStateBadge(stat.connectionState)}</td>
+                    <td>${getStateBadge(stat.iceConnectionState)}</td>
+                    <td>${stat.signalingState}</td>
+                    <td>
+                        <div class="reports-preview" onclick="showReports(${stat.id})">
+                            ${stat.reports.length} reports (click to view)
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function formatTime(timestamp) {
+            const d = new Date(timestamp);
+            return d.toLocaleTimeString() + '.' + String(d.getMilliseconds()).padStart(3, '0');
+        }
+
+        function getStateBadge(state) {
+            const classes = {
+                'connected': 'badge-connected',
+                'disconnected': 'badge-disconnected',
+                'failed': 'badge-failed',
+                'connecting': 'badge-connecting',
+                'new': 'badge-new'
+            };
+            const cls = classes[state] || 'badge-new';
+            return `<span class="badge ${cls}">${state}</span>`;
+        }
+
+        function updateSummary(stats) {
+            const summary = document.getElementById('summary');
+            summary.style.display = 'block';
+
+            document.getElementById('totalEntries').textContent = stats.length;
+            document.getElementById('localEntries').textContent = 
+                stats.filter(s => s.connectionName === 'localConnection').length;
+            document.getElementById('remoteEntries').textContent = 
+                stats.filter(s => s.connectionName === 'remoteConnection').length;
+            document.getElementById('failedEntries').textContent = 
+                stats.filter(s => s.connectionState === 'failed' || s.iceConnectionState === 'failed').length;
+        }
+
+        function applyFilter() {
+            const connFilter = document.getElementById('filterConnection').value;
+            const stateFilter = document.getElementById('filterState').value;
+
+            let filtered = allStats;
+
+            if (connFilter) {
+                filtered = filtered.filter(s => s.connectionName === connFilter);
+            }
+
+            if (stateFilter) {
+                filtered = filtered.filter(s => 
+                    s.connectionState === stateFilter || s.iceConnectionState === stateFilter
+                );
+            }
+
+            renderStats(filtered);
+        }
+
+        function resetFilter() {
+            document.getElementById('filterConnection').value = '';
+            document.getElementById('filterState').value = '';
+            renderStats(allStats);
+        }
+
+        async function showReports(id) {
+            const stat = allStats.find(s => s.id === id);
+            if (!stat) return;
+
+            document.getElementById('modalContent').textContent = JSON.stringify(stat, null, 2);
+            document.getElementById('modal').style.display = 'block';
+        }
+
+        function closeModal(event) {
+            if (!event || event.target.id === 'modal' || event.target.className === 'modal-close') {
+                document.getElementById('modal').style.display = 'none';
+            }
+        }
+
+        async function exportStats() {
+            if (allStats.length === 0) {
+                alert('No stats to export. Click "Refresh Logs" first.');
+                return;
+            }
+
+            const blob = new Blob([JSON.stringify(allStats, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `webrtc_stats_${new Date().toISOString().slice(0,19).replace(/:/g,'-')}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        async function clearStats() {
+            if (!confirm('Delete all stored stats? This cannot be undone.')) return;
+
+            try {
+                const db = await initDB();
+                const tx = db.transaction(STORE_NAME, 'readwrite');
+                const store = tx.objectStore(STORE_NAME);
+                await new Promise((resolve, reject) => {
+                    const req = store.clear();
+                    req.onsuccess = () => resolve();
+                    req.onerror = () => reject(req.error);
+                });
+
+                allStats = [];
+                renderStats([]);
+                document.getElementById('summary').style.display = 'none';
+                alert('All stats cleared.');
+            } catch (e) {
+                alert('Error clearing stats: ' + e.message);
+            }
+        }
+
+        // Load on page open
+        loadStats();
+    </script>
+</body>
+</html>

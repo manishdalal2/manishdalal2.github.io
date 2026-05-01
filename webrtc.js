@@ -25,6 +25,188 @@ let remoteConnection = null;
 let sendChannel = null;
 let receiveChannel = null;
 
+// Stats logging with IndexedDB
+const DB_NAME = 'webrtc_stats_db';
+const DB_VERSION = 1;
+const STORE_NAME = 'stats';
+let statsInterval = null;
+let statsCounter = 0;
+let dbPromise = null;
+
+// Initialize IndexedDB
+function initStatsDB() {
+    if (dbPromise) return dbPromise;
+
+    dbPromise = new Promise((resolve, reject) => {
+        const request = indexedDB.open(DB_NAME, DB_VERSION);
+
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => resolve(request.result);
+
+        request.onupgradeneeded = (event) => {
+            const db = event.target.result;
+            if (!db.objectStoreNames.contains(STORE_NAME)) {
+                const store = db.createObjectStore(STORE_NAME, { keyPath: 'id', autoIncrement: true });
+                store.createIndex('connectionName', 'connectionName', { unique: false });
+                store.createIndex('timestamp', 'timestamp', { unique: false });
+            }
+        };
+    });
+
+    return dbPromise;
+}
+
+// Get next counter value from DB
+async function getNextCounter() {
+    const db = await initStatsDB();
+    return new Promise((resolve) => {
+        const tx = db.transaction(STORE_NAME, 'readonly');
+        const store = tx.objectStore(STORE_NAME);
+        const request = store.count();
+        request.onsuccess = () => resolve(request.result + 1);
+        request.onerror = () => resolve(statsCounter + 1);
+    });
+}
+
+// Store stats entry
+async function storeStatsEntry(entry) {
+    try {
+        const db = await initStatsDB();
+        const tx = db.transaction(STORE_NAME, 'readwrite');
+        const store = tx.objectStore(STORE_NAME);
+        await new Promise((resolve, reject) => {
+            const req = store.add(entry);
+            req.onsuccess = () => resolve();
+            req.onerror = () => reject(req.error);
+        });
+    } catch (e) {
+        console.warn('Failed to store stats:', e);
+    }
+}
+
+// Start periodic stats logging
+function startStatsLogging() {
+    stopStatsLogging();
+    statsInterval = setInterval(async () => {
+        const connections = [
+            { name: 'localConnection', pc: localConnection },
+            { name: 'remoteConnection', pc: remoteConnection }
+        ];
+
+        for (const { name, pc } of connections) {
+            if (!pc || pc.signalingState === 'closed') continue;
+
+            try {
+                const stats = await pc.getStats();
+                const timestamp = new Date().toISOString();
+                statsCounter = await getNextCounter();
+
+                const statsData = [];
+                stats.forEach(report => {
+                    statsData.push(report);
+                    console.log(`[${name}] [${statsCounter}]`, report);
+                });
+
+                const statsEntry = {
+                    counter: statsCounter,
+                    timestamp: timestamp,
+                    connectionName: name,
+                    connectionState: pc.connectionState,
+                    iceConnectionState: pc.iceConnectionState,
+                    signalingState: pc.signalingState,
+                    reports: statsData
+                };
+
+                // Async store - non-blocking
+                storeStatsEntry(statsEntry);
+            } catch (e) {
+                console.error(`Error getting stats for ${name}:`, e);
+            }
+        }
+    }, 2000);
+}
+
+function stopStatsLogging() {
+    if (statsInterval) {
+        clearInterval(statsInterval);
+        statsInterval = null;
+    }
+}
+
+// Query stats by time range (useful for post-debug analysis)
+async function queryStats(connectionName, sinceTimestamp) {
+    const db = await initStatsDB();
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, 'readonly');
+        const store = tx.objectStore(STORE_NAME);
+        const index = store.index('connectionName');
+        const results = [];
+
+        const request = index.openCursor(IDBKeyRange.only(connectionName));
+        request.onsuccess = (event) => {
+            const cursor = event.target.result;
+            if (cursor) {
+                if (!sinceTimestamp || new Date(cursor.value.timestamp) >= new Date(sinceTimestamp)) {
+                    results.push(cursor.value);
+                }
+                cursor.continue();
+            } else {
+                resolve(results);
+            }
+        };
+        request.onerror = () => reject(request.error);
+    });
+}
+
+// Export all stats to a JSON file (call this when app is foregrounded to inspect)
+async function exportStatsToFile(filename = 'webrtc_stats.json') {
+    try {
+        const db = await initStatsDB();
+        const tx = db.transaction(STORE_NAME, 'readonly');
+        const store = tx.objectStore(STORE_NAME);
+
+        const allStats = await new Promise((resolve, reject) => {
+            const request = store.getAll();
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+        });
+
+        const blob = new Blob([JSON.stringify(allStats, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        console.log(`Exported ${allStats.length} stats entries to ${filename}`);
+        return allStats.length;
+    } catch (e) {
+        console.error('Failed to export stats:', e);
+        return 0;
+    }
+}
+
+// Clear all stored stats
+async function clearAllStats() {
+    try {
+        const db = await initStatsDB();
+        const tx = db.transaction(STORE_NAME, 'readwrite');
+        const store = tx.objectStore(STORE_NAME);
+        await new Promise((resolve, reject) => {
+            const req = store.clear();
+            req.onsuccess = () => resolve();
+            req.onerror = () => reject(req.error);
+        });
+        statsCounter = 0;
+        console.log('All WebRTC stats cleared from IndexedDB');
+    } catch (e) {
+        console.error('Failed to clear stats:', e);
+    }
+}
+
 // Update status message
 function updateStatus(message) {
     statusDiv.textContent = `Status: ${message}`;
@@ -152,10 +334,12 @@ createOfferBtn.addEventListener('click', async () => {
             console.log("Send channel opened");
             updateStatus("Connected! You can now chat");
             chatContainer.classList.remove('chat-disabled');
+            startStatsLogging();
         };
         
         sendChannel.onclose = () => {
             console.log("Send channel closed");
+            stopStatsLogging();
             chatContainer.classList.add('chat-disabled');
         };
         
@@ -233,6 +417,7 @@ createAnswerBtn.addEventListener('click', async () => {
                 console.log("Receive channel opened");
                 updateStatus("Connected! You can now chat");
                 chatContainer.classList.remove('chat-disabled');
+                startStatsLogging();
             };
             
             receiveChannel.onmessage = (e) => {
@@ -242,6 +427,7 @@ createAnswerBtn.addEventListener('click', async () => {
             
             receiveChannel.onclose = () => {
                 console.log("Receive channel closed");
+                stopStatsLogging();
                 chatContainer.classList.add('chat-disabled');
             };
             
