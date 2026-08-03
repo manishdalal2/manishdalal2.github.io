@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JS Console</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            font-family: 'Menlo', 'Consolas', 'Monaco', monospace;
+            font-size: 13px;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+            max-width: 100%;
+            padding: 10px;
+        }
+
+        .top-nav {
+            flex-shrink: 0;
+            margin-bottom: 10px;
+        }
+
+        .app-shell {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            min-height: 0;
+        }
+
+        #toolbar {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 10px;
+            background: #2d2d2d;
+            border-bottom: 1px solid #3c3c3c;
+            flex-shrink: 0;
+        }
+
+        #toolbar span {
+            font-size: 12px;
+            color: #888;
+            flex: 1;
+        }
+
+        #toolbar button {
+            background: #3c3c3c;
+            color: #ccc;
+            border: 1px solid #555;
+            padding: 3px 10px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 12px;
+            font-family: inherit;
+        }
+
+        #toolbar button:hover { background: #4e4e4e; }
+
+        #output {
+            flex: 1;
+            overflow-y: auto;
+            padding: 4px 0;
+        }
+
+        .entry {
+            display: flex;
+            gap: 0;
+            border-bottom: 1px solid #2a2a2a;
+        }
+
+        .entry-gutter {
+            width: 26px;
+            flex-shrink: 0;
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+            padding-top: 4px;
+            color: #555;
+            font-size: 11px;
+            user-select: none;
+        }
+
+        .entry-body {
+            flex: 1;
+            padding: 3px 6px 3px 0;
+            white-space: pre-wrap;
+            word-break: break-all;
+            line-height: 1.5;
+        }
+
+        .entry.input .entry-gutter { color: #569cd6; }
+        .entry.input .entry-body   { color: #9cdcfe; }
+
+        .entry.result .entry-gutter { color: #888; }
+        .entry.result .entry-body   { color: #d4d4d4; }
+
+        .entry.error .entry-gutter  { background: #3b1818; color: #f44747; }
+        .entry.error .entry-body    { background: #3b1818; color: #f44747; }
+
+        .entry.log   .entry-body    { color: #d4d4d4; }
+        .entry.warn  .entry-body    { color: #dcdcaa; background: #2a2600; }
+        .entry.warn  .entry-gutter  { background: #2a2600; }
+        .entry.info  .entry-body    { color: #9cdcfe; }
+
+        #input-row {
+            display: flex;
+            align-items: flex-start;
+            gap: 0;
+            border-top: 1px solid #3c3c3c;
+            background: #1e1e1e;
+            flex-shrink: 0;
+        }
+
+        #input-gutter {
+            width: 26px;
+            flex-shrink: 0;
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+            padding-top: 8px;
+            color: #569cd6;
+            user-select: none;
+        }
+
+        #code-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            outline: none;
+            color: #9cdcfe;
+            font-family: inherit;
+            font-size: 13px;
+            padding: 6px 6px 6px 0;
+            resize: none;
+            line-height: 1.5;
+            min-height: 32px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        #run-btn {
+            flex-shrink: 0;
+            background: transparent;
+            border: none;
+            color: #569cd6;
+            cursor: pointer;
+            padding: 6px 10px;
+            font-size: 16px;
+            align-self: flex-end;
+            padding-bottom: 7px;
+        }
+
+        #run-btn:hover { color: #9cdcfe; }
+
+        .null    { color: #808080; }
+        .undef   { color: #808080; }
+        .boolean { color: #569cd6; }
+        .number  { color: #b5cea8; }
+        .string  { color: #ce9178; }
+        .func    { color: #dcdcaa; }
+    </style>
+</head>
+<body>
+<header class="top-nav">
+    <div class="top-nav__brand">md projects</div>
+    <details class="rain-menu">
+        <summary class="rain-menu__trigger">Menu</summary>
+        <div class="rain-menu__panel" role="navigation" aria-label="Project Navigation">
+            <section class="rain-section">
+                <h2>WebRTC</h2>
+                <a href="webrtcmanual.html">Manual Chat</a>
+                <a href="webrtcpeer.html">PeerJS Chat</a>
+                <a href="webrtcpersistent.html">Auto-Reconnect Chat</a>
+                <a href="webrtc-logs.html">Debug Logs</a>
+            </section>
+            <section class="rain-section">
+                <h2>Tools</h2>
+                <a href="console.html">JS Console</a>
+                <a href="index.html">Home</a>
+            </section>
+        </div>
+    </details>
+</header>
+
+<div class="app-shell">
+<div id="toolbar">
+    <span>JS Console</span>
+    <button id="clear-btn" title="Clear output (Ctrl+L)">Clear</button>
+</div>
+
+<div id="output"></div>
+
+<div id="input-row">
+    <div id="input-gutter">&gt;</div>
+    <textarea id="code-input" rows="1" placeholder="Enter JavaScript..." autocomplete="off" spellcheck="false"></textarea>
+    <button id="run-btn" title="Run (Enter / Shift+Enter)">&#9654;</button>
+</div>
+</div>
+
+<script>
+    const output   = document.getElementById('output');
+    const input    = document.getElementById('code-input');
+    const runBtn   = document.getElementById('run-btn');
+    const clearBtn = document.getElementById('clear-btn');
+
+    const history  = [];
+    let histIdx    = -1;
+
+    // ── pretty-print a value ──────────────────────────────────────────────────
+    function format(val) {
+        if (val === null)      return '<span class="null">null</span>';
+        if (val === undefined) return '<span class="undef">undefined</span>';
+        if (typeof val === 'boolean') return `<span class="boolean">${val}</span>`;
+        if (typeof val === 'number')  return `<span class="number">${val}</span>`;
+        if (typeof val === 'string')  return `<span class="string">"${escHtml(val)}"</span>`;
+        if (typeof val === 'function') return `<span class="func">ƒ ${escHtml(val.name || 'anonymous')}()</span>`;
+        if (val instanceof Error)
+            return `<span class="null">${escHtml(val.toString())}</span>`;
+        try {
+            return escHtml(JSON.stringify(val, null, 2));
+        } catch {
+            return escHtml(String(val));
+        }
+    }
+
+    function escHtml(s) {
+        return String(s)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+    }
+
+    // ── append a line to the output panel ────────────────────────────────────
+    function appendEntry(type, glyph, html) {
+        const entry = document.createElement('div');
+        entry.className = `entry ${type}`;
+        entry.innerHTML =
+            `<div class="entry-gutter">${glyph}</div>` +
+            `<div class="entry-body">${html}</div>`;
+        output.appendChild(entry);
+        output.scrollTop = output.scrollHeight;
+    }
+
+    // ── intercept console methods ─────────────────────────────────────────────
+    function interceptConsole() {
+        const wrap = (method, type, glyph) => {
+            const orig = console[method].bind(console);
+            console[method] = (...args) => {
+                orig(...args);
+                const text = args.map(a =>
+                    (typeof a === 'object' && a !== null) ? format(a) : escHtml(String(a))
+                ).join(' ');
+                appendEntry(type, glyph, text);
+            };
+        };
+        wrap('log',   'log',  '');
+        wrap('info',  'info', 'ℹ');
+        wrap('warn',  'warn', '⚠');
+        wrap('error', 'error','✖');
+    }
+    interceptConsole();
+
+    // ── run code ──────────────────────────────────────────────────────────────
+    function runCode() {
+        const code = input.value.trim();
+        if (!code) return;
+
+        history.unshift(code);
+        if (history.length > 200) history.pop();
+        histIdx = -1;
+
+        appendEntry('input', '&gt;', escHtml(code));
+        input.value = '';
+        autoResize();
+
+        let result;
+        let threw = false;
+        try {
+            // indirect eval so it runs in the global scope
+            result = (0, eval)(code);
+        } catch (e) {
+            result = e;
+            threw = true;
+        }
+
+        if (threw) {
+            appendEntry('error', '✖', escHtml(result.toString()));
+        } else if (result !== undefined) {
+            appendEntry('result', '←', format(result));
+        }
+    }
+
+    // ── auto-resize textarea ──────────────────────────────────────────────────
+    function autoResize() {
+        input.style.height = 'auto';
+        input.style.height = Math.min(input.scrollHeight, 200) + 'px';
+    }
+
+    // ── keyboard handling ─────────────────────────────────────────────────────
+    input.addEventListener('keydown', e => {
+        // Enter (without Shift) → run
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            runCode();
+            return;
+        }
+
+        // Up / Down → history navigation (only when single-line)
+        if (e.key === 'ArrowUp' && input.value.indexOf('\n') === -1) {
+            if (histIdx < history.length - 1) {
+                histIdx++;
+                input.value = history[histIdx];
+                autoResize();
+                e.preventDefault();
+            }
+            return;
+        }
+        if (e.key === 'ArrowDown' && input.value.indexOf('\n') === -1) {
+            if (histIdx > 0) {
+                histIdx--;
+                input.value = history[histIdx];
+            } else {
+                histIdx = -1;
+                input.value = '';
+            }
+            autoResize();
+            e.preventDefault();
+            return;
+        }
+    });
+
+    input.addEventListener('input', autoResize);
+
+    // Ctrl+L → clear
+    document.addEventListener('keydown', e => {
+        if (e.ctrlKey && e.key === 'l') { e.preventDefault(); clearOutput(); }
+    });
+
+    runBtn.addEventListener('click', runCode);
+    clearBtn.addEventListener('click', clearOutput);
+
+    function clearOutput() {
+        output.innerHTML = '';
+    }
+
+    // ── welcome message ───────────────────────────────────────────────────────
+    appendEntry('info', 'ℹ',
+        'JavaScript Console — <span class="null">Enter</span> to run, ' +
+        '<span class="null">Shift+Enter</span> for newline, ' +
+        '<span class="null">↑↓</span> for history, ' +
+        '<span class="null">Ctrl+L</span> to clear.');
+
+    input.focus();
+</script>
+</body>
+</html>

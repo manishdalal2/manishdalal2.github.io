@@ -9,9 +9,29 @@
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
 </head>
 <body>
+    <header class="top-nav">
+        <div class="top-nav__brand">md projects</div>
+        <details class="rain-menu">
+            <summary class="rain-menu__trigger">Menu</summary>
+            <div class="rain-menu__panel" role="navigation" aria-label="Project Navigation">
+                <section class="rain-section">
+                    <h2>WebRTC</h2>
+                    <a href="webrtcmanual.html">Manual Chat</a>
+                    <a href="webrtcpeer.html">PeerJS Chat</a>
+                    <a href="webrtcpersistent.html">Auto-Reconnect Chat</a>
+                    <a href="webrtc-logs.html">Debug Logs</a>
+                </section>
+                <section class="rain-section">
+                    <h2>Tools</h2>
+                    <a href="console.html">JS Console</a>
+                    <a href="index.html">Home</a>
+                </section>
+            </div>
+        </details>
+    </header>
     <h1>WebRTC Auto Chat (PeerJS)</h1>
     <div style="text-align: center; margin: 10px 0; padding: 10px; background: #fff3cd; border-radius: 4px;">
-        <strong>Prefer manual signaling?</strong> Try the <a href="index.html" style="color: #0066cc; font-weight: bold;">Manual version</a>
+        <strong>Prefer manual signaling?</strong> Try the <a href="webrtcmanual.html" style="color: #0066cc; font-weight: bold;">Manual version</a>
     </div>
     
     <div class="server-config">

@@ -110,6 +110,7 @@ button:active {
     border-radius: 5px;
     padding: 15px;
     background-color: #fff;
+    position: relative;
 }
 
 .chat-container h2 {
@@ -175,12 +176,191 @@ button:active {
     pointer-events: none;
 }
 
+/* Shared raindrop menu */
+.top-nav {
+    width: 100%;
+    margin: 0 0 20px;
+    min-height: 56px;
+    border-radius: 18px;
+    border: 1px solid rgba(255, 255, 255, 0.75);
+    background: rgba(255, 255, 255, 0.68);
+    backdrop-filter: blur(20px);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+    box-sizing: border-box;
+}
+
+.top-nav__brand {
+    font-size: 0.9rem;
+    font-weight: 650;
+    letter-spacing: 0.01em;
+    color: #1f2937;
+}
+
+.rain-menu {
+    position: relative;
+}
+
+.rain-menu__trigger {
+    list-style: none;
+    border: 1px solid rgba(148, 163, 184, 0.4);
+    background: linear-gradient(180deg, #ffffff, #f1f5f9);
+    color: #111827;
+    border-radius: 999px;
+    font-size: 0.88rem;
+    font-weight: 600;
+    padding: 7px 14px;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.rain-menu__trigger::-webkit-details-marker {
+    display: none;
+}
+
+.rain-menu__trigger:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 10px rgba(100, 116, 139, 0.2);
+}
+
+.rain-menu[open] .rain-menu__trigger {
+    box-shadow: inset 0 0 0 1px rgba(59, 130, 246, 0.2);
+}
+
+.rain-menu__panel {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 10px);
+    width: min(780px, calc(100vw - 36px));
+    padding: 14px;
+    border-radius: 18px;
+    border: 1px solid rgba(255, 255, 255, 0.8);
+    background: rgba(255, 255, 255, 0.84);
+    backdrop-filter: blur(20px);
+    box-shadow: 0 24px 55px rgba(15, 23, 42, 0.16);
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap: 10px;
+    z-index: 200;
+}
+
+.rain-section {
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    border-radius: 14px;
+    padding: 10px;
+    background: rgba(255, 255, 255, 0.7);
+}
+
+.rain-section h2 {
+    margin: 0 0 8px;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #6b7280;
+}
+
+.rain-section a,
+.rain-section span {
+    display: block;
+    padding: 8px 10px;
+    border-radius: 10px;
+    text-decoration: none;
+    font-size: 0.92rem;
+    color: #0f172a;
+    transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.rain-section a:hover {
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.14), rgba(20, 184, 166, 0.14));
+    color: #0b1328;
+}
+
+.rain-section--muted span {
+    color: #64748b;
+    border: 1px dashed rgba(148, 163, 184, 0.5);
+    margin-bottom: 6px;
+}
+
+/* Index-specific minimal page */
+.hub-body {
+    min-height: 100vh;
+    margin: 0;
+    padding: 0;
+    max-width: 100%;
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', Arial, sans-serif;
+    color: #101010;
+    background:
+        radial-gradient(circle at 16% -5%, rgba(106, 154, 250, 0.22), transparent 38%),
+        radial-gradient(circle at 84% 8%, rgba(125, 225, 197, 0.2), transparent 34%),
+        linear-gradient(180deg, #f8fafc, #eef2f7 48%, #e7edf5);
+}
+
+.hub-body .top-nav {
+    width: min(1100px, calc(100% - 24px));
+    margin: 12px auto 0;
+}
+
+.hub-minimal {
+    width: min(900px, calc(100% - 24px));
+    margin: 72px auto 0;
+    text-align: center;
+    padding: 34px 18px;
+}
+
+.hub-title {
+    font-size: clamp(2rem, 5vw, 3.6rem);
+    line-height: 1.05;
+    margin: 0;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: #0f172a;
+}
+
+.hub-subtitle {
+    max-width: 700px;
+    margin: 14px auto 0;
+    font-size: 1.02rem;
+    line-height: 1.55;
+    color: #475569;
+}
+
 @media (max-width: 768px) {
     .container {
         flex-direction: column;
     }
-    
+
     body {
         padding: 10px;
+    }
+}
+
+@media (max-width: 700px) {
+    .top-nav {
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .rain-menu {
+        width: 100%;
+    }
+
+    .rain-menu__panel {
+        left: 0;
+        right: auto;
+        width: 100%;
+    }
+}
+
+@media (max-width: 560px) {
+    .hub-minimal {
+        margin-top: 56px;
+        padding: 20px 8px;
+    }
+
+    .hub-subtitle {
+        font-size: 0.95rem;
     }
 }
