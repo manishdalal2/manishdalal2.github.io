@@ -3,42 +3,57 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Project Menu</title>
+    <title>md projects</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body class="hub-body">
-    <header class="top-nav">
-        <div class="top-nav__brand">md projects</div>
-
-        <details class="rain-menu">
-            <summary class="rain-menu__trigger">Menu</summary>
-            <div class="rain-menu__panel" role="navigation" aria-label="Project Navigation">
-                <section class="rain-section">
-                    <h2>WebRTC</h2>
-                    <a href="webrtcmanual.html">Manual Chat</a>
-                    <a href="webrtcpeer.html">PeerJS Chat</a>
-                    <a href="webrtcpersistent.html">Auto-Reconnect Chat</a>
-                    <a href="webrtc-logs.html">Debug Logs</a>
-                </section>
-
-                <section class="rain-section">
-                    <h2>Tools</h2>
-                    <a href="console.html">JS Console</a>
-                </section>
-
-                <section class="rain-section rain-section--muted">
-                    <h2>Coming Soon</h2>
-                    <span>AI Tools</span>
-                    <span>Networking</span>
-                    <span>Utilities</span>
-                </section>
-            </div>
-        </details>
-    </header>
+    <div id="shared-nav"></div>
 
     <main class="hub-minimal">
-        <h1 class="hub-title">Project Menu</h1>
-        <p class="hub-subtitle">Clean index page with one expandable menu for all current and future options.</p>
+        <section class="hero-panel">
+            <p class="hero-panel__eyebrow">Project launchpad</p>
+            <h1 class="hub-title">A cleaner way to explore your demos and AI tools.</h1>
+            <p class="hub-subtitle">Open the manual chat experience, inspect the console, visit Shareby Air, or call the voice agent in one polished hub.</p>
+
+            <div class="hero-actions">
+                <a class="button button--primary" href="webrtcmanual.html">Open Manual Chat</a>
+                <a class="button button--secondary" href="tel:+14085331493">Call Voice Agent</a>
+            </div>
+        </section>
+
+        <section class="card-grid" aria-label="Project cards">
+            <a class="card" href="webrtcmanual.html">
+                <div class="card__icon">💬</div>
+                <h2>Manual Chat</h2>
+                <p>Start a direct WebRTC conversation with a polished interface.</p>
+            </a>
+
+            <a class="card" href="console.html">
+                <div class="card__icon">🧪</div>
+                <h2>JS Console</h2>
+                <p>Run quick browser-based experiments and inspect the output.</p>
+            </a>
+
+            <a class="card" href="https://sharebyair.com/" target="_blank" rel="noopener noreferrer">
+                <div class="card__icon">✈️</div>
+                <h2>Shareby Air</h2>
+                <p>Visit the Shareby Air experience directly from the hub.</p>
+            </a>
+
+            <a class="card" href="tel:+14085331493">
+                <div class="card__icon">🎙️</div>
+                <h2>Voice Agent</h2>
+                <p>Call +1 (408) 533-1493 and connect with the voice agent.</p>
+            </a>
+        </section>
+
+        <section class="quick-links" aria-label="Additional links">
+            <a href="https://zoryn.ai/" target="_blank" rel="noopener noreferrer">Zoryn AI</a>
+            <a href="webrtcpeer.html">PeerJS Chat</a>
+            <a href="webrtcpersistent.html">Auto-Reconnect</a>
+        </section>
     </main>
+
+    <script src="nav.js"></script>
 </body>
 </html>
