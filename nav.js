@@ -17,6 +17,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <a href="webrtcpersistent.html">Auto-Reconnect</a>
                 <a href="webrtc-logs.html">Debug Logs</a>
                 <a href="console.html">JS Console</a>
+                <a href="json_escaper.html">JSON Escaper</a>
                 <a href="https://sharebyair.com/" target="_blank" rel="noopener noreferrer">Shareby Air</a>
                 <a href="https://zoryn.ai/" target="_blank" rel="noopener noreferrer">Zoryn AI</a>
                 <a href="tel:+14085331493">Voice Agent</a>

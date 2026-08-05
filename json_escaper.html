@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JSON Escaper & Inspector</title>
+    <style>
+        :root {
+            --artifact-background: var(--theme-background, #ffffff);
+            --artifact-background-light: var(--theme-background-light, #f4f4f4);
+            --artifact-text-primary: var(--theme-text-primary, #161616);
+            --artifact-text-secondary: var(--theme-text-secondary, #525252);
+            --artifact-border: var(--theme-border, #e0e0e0);
+            --artifact-primary: var(--theme-primary, #0f62fe);
+            --artifact-primary-hover: var(--theme-primary-hover, #0353e9);
+            --artifact-error: var(--theme-error, #da1e28);
+            --artifact-success: #198038;
+            --sh-key: #0451a5;
+            --sh-string: #a31515;
+            --sh-number: #098658;
+            --sh-boolean: #0000ff;
+        }
+        html[data-theme='dark'] {
+            --artifact-background: #161616;
+            --artifact-background-light: #262626;
+            --artifact-text-primary: #f4f4f4;
+            --artifact-text-secondary: #c6c6c6;
+            --artifact-border: #393939;
+            --artifact-primary: #4589ff;
+            --artifact-primary-hover: #78a9ff;
+            --artifact-error: #fa4d56;
+            --artifact-success: #24a148;
+            --sh-key: #9cdcfe;
+            --sh-string: #ce9178;
+            --sh-number: #b5cea8;
+            --sh-boolean: #569cd6;
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: var(--artifact-background);
+            color: var(--artifact-text-primary);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; flex-wrap: wrap; gap: 12px; }
+        h1 { margin: 0; font-size: 1.25rem; font-weight: 600; }
+        .toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+        button { background: var(--artifact-background-light); color: var(--artifact-text-primary); border: 1px solid var(--artifact-border); padding: 8px 14px; border-radius: 6px; cursor: pointer; font-size: 0.875rem; font-weight: 500; transition: all 0.2s; }
+        button:hover { background: var(--artifact-border); }
+        button.primary { background: var(--artifact-primary); color: #ffffff; border-color: var(--artifact-primary); }
+        button.primary:hover { background: var(--artifact-primary-hover); }
+        .input-group { display: flex; align-items: center; border: 1px solid var(--artifact-border); border-radius: 6px; background: var(--artifact-background-light); overflow: hidden; flex: 1; max-width: 500px; }
+        .input-group input[type="text"] { background: transparent; border: none; color: var(--artifact-text-primary); padding: 8px 12px; outline: none; flex: 1; font-size: 0.875rem; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; }
+        .zoom-control { display: flex; align-items: center; border-left: 1px solid var(--artifact-border); padding: 0 8px; background: var(--artifact-background); height: 100%; }
+        .zoom-control label { font-size: 0.75rem; color: var(--artifact-text-secondary); margin-right: 4px; }
+        .zoom-control input[type="number"] { width: 40px; background: transparent; border: none; color: var(--artifact-text-primary); outline: none; font-size: 0.875rem; }
+        .input-group button { border: none; border-left: 1px solid var(--artifact-border); border-radius: 0; margin: 0; background: transparent; height: 100%; }
+        .input-group button:hover { background: var(--artifact-border); }
+        #error-msg { color: var(--artifact-error); font-size: 0.875rem; margin-bottom: 12px; min-height: 20px; font-weight: 500; white-space: pre-wrap; }
+        .main-content { display: flex; gap: 16px; flex: 1; min-height: 0; }
+        .panel { flex: 1; display: flex; flex-direction: column; border: 1px solid var(--artifact-border); border-radius: 8px; background: var(--artifact-background-light); overflow: hidden; position: relative; }
+        .panel-header { padding: 10px 16px; border-bottom: 1px solid var(--artifact-border); font-size: 0.875rem; font-weight: 600; display: flex; justify-content: space-between; align-items: center; }
+        textarea { flex: 1; width: 100%; border: none; background: transparent; color: var(--artifact-text-primary); padding: 16px; font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace; font-size: 0.875rem; line-height: 1.4; resize: none; outline: none; }
+        #tree-view { flex: 1; padding: 16px; overflow-y: auto; font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace; font-size: 0.875rem; line-height: 1.5; display: none; background: transparent; }
+        #loading { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: var(--artifact-background); opacity: 0.8; display: none; align-items: center; justify-content: center; color: var(--artifact-text-primary); font-weight: 600; z-index: 10; }
+        details { padding-left: 14px; }
+        summary { cursor: pointer; list-style: none; display: flex; align-items: center; user-select: none; position: relative; }
+        summary::-webkit-details-marker { display: none; }
+        summary::before { content: '▶'; font-size: 0.65rem; margin-right: 8px; color: var(--artifact-text-secondary); display: inline-block; transition: transform 0.2s; }
+        details[open] > summary::before { transform: rotate(90deg); }
+        .children { padding-left: 14px; border-left: 1px solid var(--artifact-border); margin-left: 4px; }
+        .leaf { padding-left: 22px; margin: 2px 0; word-break: break-all; display: flex; align-items: flex-start; position: relative; }
+        .key { color: var(--sh-key); font-weight: 500; white-space: pre; }
+        .string { color: var(--sh-string); white-space: pre-wrap; }
+        .number { color: var(--sh-number); }
+        .boolean, .null { color: var(--sh-boolean); }
+        .type { color: var(--artifact-text-secondary); font-style: italic; font-size: 0.8rem; margin-left: 6px; }
+        .node-actions { display: flex; gap: 4px; opacity: 0; margin-left: auto; transition: opacity 0.2s; padding-left: 12px; }
+        .leaf:hover .node-actions, summary:hover .node-actions { opacity: 1; }
+        .action-btn { background: transparent; border: 1px solid var(--artifact-border); color: var(--artifact-text-secondary); cursor: pointer; padding: 2px 6px; font-size: 0.75rem; border-radius: 4px; }
+        .action-btn:hover { color: var(--artifact-primary); border-color: var(--artifact-primary); background: var(--artifact-background); }
+        .toast { position: fixed; bottom: 20px; right: 20px; background: var(--artifact-success); color: white; padding: 10px 20px; border-radius: 4px; font-size: 0.875rem; opacity: 0; pointer-events: none; transition: opacity 0.3s; z-index: 1000; }
+        @media screen and (max-width: 768px) { .main-content { flex-direction: column; } .header { flex-direction: column; align-items: flex-start; } .input-group { width: 100%; } }
+        @media print {
+            body { margin: 0; padding: 0.4in 0.6in; background: #fff; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+            .header, #error-msg, button, .input-group, #loading, .node-actions { display: none !important; }
+            .main-content { display: block; }
+            .panel { height: auto; min-height: 4in; break-inside: avoid; margin-bottom: 20px; }
+            #tree-view { display: block !important; overflow: visible; }
+            textarea { display: none !important; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>JSON Escaper & Inspector</h1>
+        <div class="toolbar">
+            <button class="primary" onclick="handleProcess()" title="Deeply Parse, Unescape, and Format">Deep Process</button>
+            <button onclick="handleMinify()" title="Remove all whitespace">Minify</button>
+            <button onclick="handleEscape()" title="Escape as a JSON string">Escape</button>
+            <div class="input-group">
+                <input type="text" id="query-input" placeholder="Search (e.g. pageId = 123)" onkeypress="if(event.key==='Enter') handleQuery()">
+                <div class="zoom-control" title="0 = Exact match, 1 = Parent object, 2 = Grandparent object, etc.">
+                    <label for="zoom-input">Zoom (↑):</label>
+                    <input type="number" id="zoom-input" value="0" min="0" max="20">
+                </div>
+                <button onclick="handleQuery()">Search</button>
+            </div>
+        </div>
+    </div>
+    <div id="error-msg"></div>
+    <div class="main-content">
+        <div class="panel">
+            <div class="panel-header">Input JSON (Raw, Escaped, or Multiple)</div>
+            <textarea id="input" spellcheck="false" placeholder="Paste your JSON here...&#10;&#10;Supports:&#10;- Standard JSON&#10;- Nested / double escaped JSON strings&#10;- Multiple JSON strings (NDJSON or lines)&#10;- Loose JSON (missing some quotes)"></textarea>
+        </div>
+        <div class="panel">
+            <div class="panel-header">
+                <span>Output Viewer</span>
+                <div style="display: flex; gap: 8px;">
+                    <button id="btn-inspect" onclick="toggleInspect()" class="primary">Toggle Tree View</button>
+                    <button id="btn-copy" onclick="copyOutput()">Copy Full Output</button>
+                </div>
+            </div>
+            <textarea id="output" readonly spellcheck="false" placeholder="Processed unescaped output will appear here..."></textarea>
+            <div id="tree-view"></div>
+            <div id="loading">Processing...</div>
+        </div>
+    </div>
+    <div class="toast" id="toast">Copied to clipboard!</div>
+    <script>
+        const elInput = document.getElementById('input');
+        const elOutput = document.getElementById('output');
+        const elTree = document.getElementById('tree-view');
+        const elError = document.getElementById('error-msg');
+        const elLoading = document.getElementById('loading');
+        const elQuery = document.getElementById('query-input');
+        const elZoom = document.getElementById('zoom-input');
+        const btnInspect = document.getElementById('btn-inspect');
+        const toast = document.getElementById('toast');
+        let rootInputObj = null;
+        let currentOutputObj = null;
+        let currentOutputStr = "";
+        let isTreeView = true;
+        toggleInspect(true);
+
+        function showLoading(fn) {
+            elLoading.style.display = 'flex';
+            setTimeout(() => {
+                try { fn(); elError.textContent = ""; }
+                catch (err) { elError.textContent = "Error: " + err.message; }
+                finally { elLoading.style.display = 'none'; }
+            }, 50);
+        }
+        function showToast(msg) { toast.textContent = msg; toast.style.opacity = 1; setTimeout(() => { toast.style.opacity = 0; }, 2000); }
+        function recursivelyUnescape(val) {
+            if (typeof val === 'string') {
+                let str = val.trim();
+                if ((str.startsWith('{') && str.endsWith('}')) || (str.startsWith('[') && str.endsWith(']'))) {
+                    try { return recursivelyUnescape(JSON.parse(str)); } catch(e) {}
+                }
+                try {
+                    let unescaped = str.replace(/\\"/g, '"').replace(/\\\\/g, '\\');
+                    if (unescaped !== str) {
+                        let trimmed = unescaped.trim();
+                        if ((trimmed.startsWith('{') && trimmed.endsWith('}')) || (trimmed.startsWith('[') && trimmed.endsWith(']'))) return recursivelyUnescape(JSON.parse(trimmed));
+                    }
+                } catch(e) {}
+                return val;
+            } else if (Array.isArray(val)) return val.map(v => recursivelyUnescape(v));
+            else if (val !== null && typeof val === 'object') { let res = {}; for (let k in val) res[k] = recursivelyUnescape(val[k]); return res; }
+            return val;
+        }
+        function robustParse(str) {
+            str = str.trim();
+            if (!str) throw new Error("Input is empty");
+            const lines = str.split('\n').map(l => l.trim()).filter(Boolean);
+            if (lines.length > 1) {
+                let allParsed = [], success = true;
+                for (let line of lines) { try { allParsed.push(parseSingle(line)); } catch (e) { success = false; break; } }
+                if (success) return allParsed;
+            }
+            return parseSingle(str);
+        }
+        function parseSingle(str) {
+            try { return JSON.parse(str); } catch (e1) {}
+            try {
+                let unescaped = str.replace(/\\"/g, '"').replace(/\\\\/g, '\\');
+                if (unescaped.startsWith('"') && unescaped.endsWith('"')) unescaped = unescaped.slice(1, -1);
+                return JSON.parse(unescaped);
+            } catch (e2) {}
+            try {
+                let looseFixed = str.replace(/([{,]\s*)([a-zA-Z0-9_$]+)(\s*:)/g, '$1"$2"$3');
+                looseFixed = looseFixed.replace(/'([^']*)'/g, '"$1"');
+                return JSON.parse(looseFixed);
+            } catch (e3) { throw new Error("Invalid JSON structure."); }
+        }
+        function renderOutput(obj, strOut) { currentOutputObj = obj; currentOutputStr = strOut; elOutput.value = strOut; if (isTreeView) renderTree(obj); }
+        function handleProcess() { showLoading(() => { const str = elInput.value.trim(); if (!str) return; const obj = recursivelyUnescape(robustParse(str)); rootInputObj = obj; renderOutput(obj, JSON.stringify(obj, null, 2)); }); }
+        function handleMinify() { showLoading(() => { const str = elInput.value.trim(); if (!str) return; const obj = recursivelyUnescape(robustParse(str)); renderOutput(obj, JSON.stringify(obj)); }); }
+        function handleEscape() { showLoading(() => { const str = elInput.value.trim(); if (!str) return; const obj = robustParse(str); const escaped = JSON.stringify(JSON.stringify(obj)); renderOutput(escaped, escaped); }); }
+        function handleQuery() {
+            showLoading(() => {
+                const query = elQuery.value.trim(), zoomLevel = parseInt(elZoom.value) || 0, str = elInput.value.trim();
+                if (!str) return;
+                let baseObj = rootInputObj;
+                if (!baseObj) { baseObj = recursivelyUnescape(robustParse(str)); rootInputObj = baseObj; }
+                if (!query) { renderOutput(baseObj, JSON.stringify(baseObj, null, 2)); return; }
+                if (!query.startsWith('$')) {
+                    let results = [], match = query.match(/([a-zA-Z0-9_$]+)\s*(?:=|:|==|===)\s*(.*)/);
+                    const fuzzySearch = (node, pathStack) => {
+                        if (node && typeof node === 'object') {
+                            let isMatch = false;
+                            if (match) { let k = match[1], v = match[2].replace(/^['"]|['"]$/g, ''); if (k in node && String(node[k]) === String(v)) isMatch = true; }
+                            else if (query in node) isMatch = true;
+                            if (isMatch) { let targetDepth = Math.max(0, pathStack.length - 1 - zoomLevel), zoomedNode = pathStack[targetDepth]; if (!results.includes(zoomedNode)) results.push(zoomedNode); }
+                            Object.values(node).forEach(child => { if (child && typeof child === 'object') fuzzySearch(child, [...pathStack, child]); });
+                        }
+                    };
+                    fuzzySearch(baseObj, [baseObj]);
+                    if (results.length === 0) throw new Error("No matches found for search: " + query);
+                    let finalRes = results.length === 1 ? results[0] : results; renderOutput(finalRes, JSON.stringify(finalRes, null, 2)); return;
+                }
+                let jsQuery = query.replace(/\[\?\(\s*\@\.([a-zA-Z0-9_$]+)\s*(==|===|!=|!==|>|<|>=|<=)\s*(.+?)\s*\)\]/g, (m, prop, op, val) => `.filter(__i => __i.${prop} ${op} ${val})`);
+                try { const result = new Function('$', 'return ' + jsQuery + ';')(baseObj); renderOutput(result, result === undefined ? "undefined" : JSON.stringify(result, null, 2)); }
+                catch (e) { throw new Error("Query error. Use: `key = value` OR standard JS like `$.items.filter(x => x.id == 1)`"); }
+            });
+        }
+        function toggleInspect(forceState) {
+            isTreeView = forceState !== undefined ? forceState : !isTreeView;
+            if (isTreeView) { elOutput.style.display = 'none'; elTree.style.display = 'block'; btnInspect.textContent = 'View Raw Text Output'; if (currentOutputObj !== undefined) renderTree(currentOutputObj); }
+            else { elTree.style.display = 'none'; elOutput.style.display = 'block'; btnInspect.textContent = 'View Structured Tree'; }
+        }
+        function isValidId(str) { return /^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(str); }
+        function renderTree(obj) { elTree.innerHTML = ''; if (obj === undefined) { elTree.textContent = 'undefined'; return; } elTree.appendChild(createNode(null, obj, 0, '$', false)); }
+        function createNodeActions(currentPath, nodeValue) {
+            const container = document.createElement('div'); container.className = 'node-actions';
+            if (currentPath) {
+                const btnPath = document.createElement('button'); btnPath.className = 'action-btn'; btnPath.textContent = 'Copy Path'; btnPath.title = `Copy JSONPath: ${currentPath}`;
+                btnPath.onclick = e => { e.preventDefault(); navigator.clipboard.writeText(currentPath).then(() => { showToast('Copied Path!'); elQuery.value = currentPath; }); }; container.appendChild(btnPath);
+            }
+            const btnVal = document.createElement('button'); btnVal.className = 'action-btn'; btnVal.textContent = 'Copy Value'; btnVal.title = 'Copy fully unescaped JSON value for this node';
+            btnVal.onclick = e => { e.preventDefault(); const strVal = typeof nodeValue === 'object' ? JSON.stringify(nodeValue, null, 2) : String(nodeValue); navigator.clipboard.writeText(strVal).then(() => showToast('Copied Value!')); }; container.appendChild(btnVal);
+            return container;
+        }
+        function createNode(key, value, depth, currentPath, isParentArray) {
+            if (value && typeof value === 'object') {
+                const isArray = Array.isArray(value), details = document.createElement('details'); if (depth < 3) details.open = true;
+                const summary = document.createElement('summary'), count = isArray ? value.length : Object.keys(value).length;
+                let safeKey = ''; if (key !== null) { const tempDiv = document.createElement('div'); tempDiv.textContent = isParentArray ? `${key}: ` : `"${key}": `; safeKey = tempDiv.innerHTML; }
+                summary.innerHTML = `<span class="key">${safeKey}</span><span class="type">${isArray ? 'Array' : 'Object'} [${count}]</span>`; summary.appendChild(createNodeActions(currentPath, value)); details.appendChild(summary);
+                const childrenDiv = document.createElement('div'); childrenDiv.className = 'children'; const keys = Object.keys(value), LIMIT = 500;
+                keys.slice(0, LIMIT).forEach(k => { let childPath = currentPath; if (currentPath === '$') childPath = isArray ? `$[${k}]` : (isValidId(k) ? `$.${k}` : `$["${k}"]`); else childPath = isArray ? `${currentPath}[${k}]` : (isValidId(k) ? `${currentPath}.${k}` : `${currentPath}["${k}"]`); childrenDiv.appendChild(createNode(k, value[k], depth + 1, childPath, isArray)); });
+                if (keys.length > LIMIT) { const trunc = document.createElement('div'); trunc.className = 'leaf type'; trunc.textContent = `... (${keys.length - LIMIT} more items hidden to maintain performance)`; childrenDiv.appendChild(trunc); }
+                details.appendChild(childrenDiv); return details;
+            }
+            const div = document.createElement('div'); div.className = 'leaf'; const type = value === null ? 'null' : typeof value, strVal = type === 'string' ? `"${value}"` : String(value);
+            let safeKey = ''; if (key !== null) { const tempKey = document.createElement('div'); tempKey.textContent = isParentArray ? `${key}: ` : `"${key}": `; safeKey = tempKey.innerHTML; }
+            const tempVal = document.createElement('div'); tempVal.textContent = strVal; div.innerHTML = `<span class="key">${safeKey}</span><span class="${type}">${tempVal.innerHTML}</span>`; div.appendChild(createNodeActions(currentPath, value)); return div;
+        }
+        function copyOutput() { if (!currentOutputStr) return; navigator.clipboard.writeText(currentOutputStr).then(() => showToast('Copied Full Output to Clipboard!')).catch(err => { elError.textContent = 'Failed to copy: ' + err.message; }); }
+        window.GleanBridge?.postMessage({ actionId: 'export-pdf', type: 'glean-add-menu', metadata: { label: 'Export as PDF', icon: 'export' } });
+        window.GleanBridge?.onMessage('action', data => { if (data.actionId === 'export-pdf') window.print(); });
+    </script>
+</body>
+</html>
