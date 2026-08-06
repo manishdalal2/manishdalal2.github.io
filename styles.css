@@ -191,6 +191,8 @@ button:active {
     padding: 10px 14px;
     box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
     box-sizing: border-box;
+    position: relative;
+    z-index: 500;
 }
 
 .top-nav__brand {
@@ -502,7 +504,7 @@ button:active {
     background: #ffffff;
     border: 1px solid rgba(148, 163, 184, 0.12);
     box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
-    z-index: 300;
+    z-index: 600;
 }
 
 .dropdown__menu a {
