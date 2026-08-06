@@ -469,6 +469,56 @@ button:active {
     color: #1d4ed8;
 }
 
+/* Dropdown styling for WebRTC menu */
+.top-nav__dropdown {
+    position: relative;
+}
+
+.dropdown__toggle {
+    background: transparent;
+    border: 1px solid transparent;
+    padding: 8px 12px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-weight: 600;
+    color: #334155;
+}
+
+.dropdown__toggle[aria-expanded="true"] {
+    background: rgba(37, 99, 235, 0.08);
+    color: #1d4ed8;
+}
+
+.dropdown__menu {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    min-width: 180px;
+    display: none;
+    flex-direction: column;
+    gap: 6px;
+    padding: 8px;
+    border-radius: 10px;
+    background: #ffffff;
+    border: 1px solid rgba(148, 163, 184, 0.12);
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
+    z-index: 300;
+}
+
+.dropdown__menu a {
+    padding: 8px 10px;
+    border-radius: 8px;
+    color: #0f172a;
+}
+
+.dropdown__menu a:hover {
+    background: rgba(15, 23, 42, 0.04);
+}
+
+.dropdown__menu.is-open {
+    display: flex;
+}
+
 .hamburger {
     display: none;
     border: none;
@@ -520,6 +570,22 @@ button:active {
         background: rgba(255, 255, 255, 0.94);
         border: 1px solid rgba(148, 163, 184, 0.24);
         box-shadow: 0 16px 36px rgba(15, 23, 42, 0.1);
+    }
+
+    /* Mobile: keep dropdown inline */
+    .top-nav__dropdown {
+        width: 100%;
+    }
+
+    .dropdown__menu {
+        position: static;
+        display: none;
+        width: 100%;
+        padding-left: 8px;
+    }
+
+    .dropdown__menu.is-open {
+        display: flex;
     }
 
     .top-nav__menu.is-open {
